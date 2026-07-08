@@ -43,6 +43,8 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;   // rolls off highlights → daytime keeps contrast
+renderer.toneMappingExposure = 1.12;
 app.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -825,16 +827,28 @@ animated.push({ fn:(t,dt)=>{
   });
 }});
 
-/* ---------- day / night ---------- */
+/* ---------- time of day (sun arc) ---------- */
+// day tuned darker/more saturated than the original so the campus reads with contrast
 const SKY = {
-  day:   { sky:new THREE.Color(0xCDE7F5), fog:new THREE.Color(0xCDE7F5),
-           hemiSky:new THREE.Color(0xEAF6FF), hemiGround:new THREE.Color(0xB7A8E0), hemiI:.75,
-           sunC:new THREE.Color(0xFFF3DD), sunI:1.05, ground:new THREE.Color(C.ground) },
+  day:   { sky:new THREE.Color(0x9CCFEF), fog:new THREE.Color(0xA9D6F0),
+           hemiSky:new THREE.Color(0xDDF0FF), hemiGround:new THREE.Color(0x8E7FC9), hemiI:.48,
+           sunC:new THREE.Color(0xFFEECC), sunI:1.5, ground:new THREE.Color(C.ground) },
+  dusk:  { sky:new THREE.Color(0xF2A46B), fog:new THREE.Color(0xEFA075),
+           hemiSky:new THREE.Color(0xFFD9A8), hemiGround:new THREE.Color(0x7E639E), hemiI:.5,
+           sunC:new THREE.Color(0xFF8A4A), sunI:.85, ground:new THREE.Color(0xC7AE9C) },
   night: { sky:new THREE.Color(0x232A52), fog:new THREE.Color(0x232A52),
            hemiSky:new THREE.Color(0x4A57A0), hemiGround:new THREE.Color(0x2E2750), hemiI:.42,
            sunC:new THREE.Color(0xA7B6FF), sunI:.22, ground:new THREE.Color(0x8B84C4) },
 };
-let nightTarget = 0, nightMix = 0;
+let hourCur = 10.5, hourTarget = 10.5;   // 24h clock; sun is up 6:00–18:00
+let nightMix = 0;                        // derived each frame; 1 = full night
+
+function mix3(out, a, b, c, wa, wb, wc){
+  out.setRGB(a.r*wa + b.r*wb + c.r*wc,
+             a.g*wa + b.g*wb + c.g*wc,
+             a.b*wa + b.b*wb + c.b*wc);
+  return out;
+}
 
 /* stars */
 const starGeo = new THREE.BufferGeometry();
@@ -867,34 +881,66 @@ moon.lookAt(0, 0, 0);
 scene.add(moon);
 moon.visible = false;
 
-function applySky(mix){
-  const d = SKY.day, n = SKY.night;
-  scene.background.lerpColors(d.sky, n.sky, mix);
-  scene.fog.color.lerpColors(d.fog, n.fog, mix);
-  hemi.color.lerpColors(d.hemiSky, n.hemiSky, mix);
-  hemi.groundColor.lerpColors(d.hemiGround, n.hemiGround, mix);
-  hemi.intensity = d.hemiI + (n.hemiI - d.hemiI)*mix;
-  sun.color.lerpColors(d.sunC, n.sunC, mix);
-  sun.intensity = d.sunI + (n.sunI - d.sunI)*mix;
-  ground.material.color.lerpColors(d.ground, n.ground, mix);
-  starMat.opacity = Math.max(0, mix*1.15 - .15);
+/* sun disc — arcs across the sky with the time of day */
+const sunDisc = new THREE.Mesh(
+  new THREE.SphereGeometry(5.5, 16, 16),
+  new THREE.MeshBasicMaterial({ color:0xFFE9A0, fog:false })
+);
+scene.add(sunDisc);
+
+function applySkyTime(hour){
+  const sunA = (hour - 6) / 12 * Math.PI;                    // 0 at 06:00, π at 18:00
+  const elev = Math.sin(sunA);                               // sun elevation, <0 at night
+  const moonA = (((hour + 6) % 24) / 12) * Math.PI;          // 0 at 18:00, π at 06:00
+  const moonElev = Math.sin(moonA);
+
+  const dayW  = THREE.MathUtils.clamp(elev / .35, 0, 1);     // full day once the sun is well up
+  nightMix    = THREE.MathUtils.clamp(-elev / .25, 0, 1);    // full night a bit after sundown
+  const duskW = 1 - dayW - nightMix;                         // golden-hour band in between
+
+  const d = SKY.day, k = SKY.dusk, n = SKY.night;
+  mix3(scene.background, d.sky, k.sky, n.sky, dayW, duskW, nightMix);
+  mix3(scene.fog.color, d.fog, k.fog, n.fog, dayW, duskW, nightMix);
+  mix3(hemi.color, d.hemiSky, k.hemiSky, n.hemiSky, dayW, duskW, nightMix);
+  mix3(hemi.groundColor, d.hemiGround, k.hemiGround, n.hemiGround, dayW, duskW, nightMix);
+  hemi.intensity = d.hemiI*dayW + k.hemiI*duskW + n.hemiI*nightMix;
+  mix3(sun.color, d.sunC, k.sunC, n.sunC, dayW, duskW, nightMix);
+  sun.intensity = d.sunI*dayW + k.sunI*duskW + n.sunI*nightMix;
+  mix3(ground.material.color, d.ground, k.ground, n.ground, dayW, duskW, nightMix);
+
+  // the shadow-casting light rides the sun's arc by day and the moon's by night
+  if(elev >= 0) sun.position.set(-Math.cos(sunA)*80, 12 + elev*40, 30);
+  else          sun.position.set(-Math.cos(moonA)*80, 12 + Math.max(0, moonElev)*40, 30);
+
+  sunDisc.visible = elev > .02;
+  sunDisc.position.set(-Math.cos(sunA)*115, Math.sin(sunA)*88, -70);
+  moon.visible = moonElev > .02 && nightMix > .01;
+  moon.position.set(-Math.cos(moonA)*115, Math.max(.01, moonElev)*88, -70);
+  moon.lookAt(0, 0, 0);
+  moonBody.material.emissiveIntensity = .9*nightMix;
+
+  starMat.opacity = Math.max(0, nightMix*1.15 - .15);
   stars.rotation.y += .00012;
-  moon.visible = mix > .04;
-  moonBody.material.emissiveIntensity = .9*mix;
-  glowMats.forEach(g => { g.m.emissiveIntensity = g.day + (g.night - g.day)*mix; });
+  glowMats.forEach(g => { g.m.emissiveIntensity = g.day + (g.night - g.day)*nightMix; });
   // clouds dim at night
-  clouds.forEach(c => c.g.traverse(o => { if(o.material) o.material.color.setScalar(1 - mix*.55); }));
+  clouds.forEach(c => c.g.traverse(o => { if(o.material) o.material.color.setScalar(1 - nightMix*.55); }));
+
+  const isNight = nightMix > .5;
+  if(isNight !== document.body.classList.contains('night')){
+    document.body.classList.toggle('night', isNight);
+    skyBtn.textContent = isNight ? '🌙' : '☀️';
+  }
+  updateTimePanel(hour);
 }
 
 const skyBtn = document.getElementById('skyToggle');
+skyBtn.textContent = '☀️';
 function toggleNight(){
-  nightTarget = nightTarget ? 0 : 1;
-  skyBtn.textContent = nightTarget ? '☀️' : '🌙';
-  document.body.classList.toggle('night', !!nightTarget);
+  const goNight = nightMix < .5;
+  hourTarget = goNight ? 0 : 12;
   sfx.ui();
-  showToast(nightTarget ? '🌙 Night mode — the museum lights up' : '☀️ Good morning!');
+  showToast(goNight ? '🌙 Night mode — the museum lights up' : '☀️ Good morning!');
 }
-skyBtn.addEventListener('click', toggleNight);
 
 /* ---------- weather (clear / rain / snow) ---------- */
 let weatherMode = 0;                       // 0 clear, 1 rain, 2 snow
@@ -1899,7 +1945,61 @@ document.getElementById('helmBtn').addEventListener('click', function(){
 document.getElementById('custBtn').addEventListener('click', ()=>{
   custOpen = !custOpen;
   custEl.classList.toggle('open', custOpen);
+  if(custOpen) closeTimePanel();
   sfx.ui();
+});
+
+/* ---------- time-of-day panel (sun-arc slider) ---------- */
+let timeOpen = false;
+const timePanel = document.getElementById('timePanel');
+const timeKnob = document.getElementById('timeKnob');
+const timeKnobIcon = document.getElementById('timeKnobIcon');
+const timeLabel = document.getElementById('timeLabel');
+const timeArc = document.getElementById('timeArc');
+const ARC_CX = 110, ARC_CY = 106, ARC_R = 90;   // matches the SVG path
+
+let lastPanelHour = -1;
+function updateTimePanel(hour){
+  if(!timeOpen || Math.abs(hour - lastPanelHour) < .002) return;
+  lastPanelHour = hour;
+  const phi = (1 - hour/24) * Math.PI;           // 0h left (φ=π) → 24h right (φ=0)
+  const x = ARC_CX + Math.cos(phi) * ARC_R;
+  const y = ARC_CY - Math.sin(phi) * ARC_R;
+  timeKnob.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
+  timeKnobIcon.textContent = (hour >= 6 && hour < 18) ? '☀️' : '🌙';
+  const h = Math.floor(hour), m = Math.floor((hour - h) * 60);
+  timeLabel.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+function closeTimePanel(){ timeOpen = false; timePanel.classList.remove('open'); }
+skyBtn.addEventListener('click', ()=>{
+  timeOpen = !timeOpen;
+  timePanel.classList.toggle('open', timeOpen);
+  if(timeOpen){ custOpen = false; custEl.classList.remove('open'); lastPanelHour = -1; updateTimePanel(hourCur); }
+  sfx.ui();
+});
+
+function arcPointerHour(ev){
+  const r = timeArc.getBoundingClientRect();
+  const sx = 220 / r.width;                      // viewBox units per CSS px
+  const x = (ev.clientX - r.left) * sx - ARC_CX;
+  const y = ARC_CY - (ev.clientY - r.top) * (122 / r.height);
+  let phi = Math.atan2(Math.max(0, y), x);       // clamp below-horizon drags to the ends
+  phi = THREE.MathUtils.clamp(phi, 0, Math.PI);
+  return (1 - phi / Math.PI) * 24;               // left end = 0h, right end = 24h
+}
+let timeDragging = false;
+timeArc.addEventListener('pointerdown', ev=>{
+  timeDragging = true;
+  try{ timeArc.setPointerCapture(ev.pointerId); }catch(e){}
+  hourTarget = hourCur = arcPointerHour(ev) % 24;
+});
+timeArc.addEventListener('pointermove', ev=>{
+  if(!timeDragging) return;
+  hourTarget = hourCur = arcPointerHour(ev) % 24;
+});
+timeArc.addEventListener('pointerup', ()=>{ timeDragging = false; sfx.ui(); });
+timePanel.querySelectorAll('.t-presets button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{ hourTarget = parseFloat(btn.dataset.h); sfx.ui(); });
 });
 let toastTimer;
 function showToast(msg){
@@ -2060,8 +2160,10 @@ function loop(){
   updateCamera(dt, t);
   updateInteraction();
   updateWeather(t, dt);
-  nightMix += (nightTarget - nightMix) * Math.min(1, dt * 2.2);
-  applySky(nightMix);
+  // ease toward the target hour, taking the short way around the clock
+  const dHr = ((hourTarget - hourCur + 36) % 24) - 12;
+  if(Math.abs(dHr) > .0005) hourCur = (hourCur + dHr * Math.min(1, dt * 2.5) + 24) % 24;
+  applySkyTime(hourCur);
   animated.forEach(a => a.fn(t, dt));
   drawMinimap(t);
   // ambient birds by day, crickets by night

@@ -21,7 +21,7 @@ the audio, the models, the particles — is generated procedurally in code, so t
 - **Exhibit detail pages** — gallery, hours, event schedule, highlights
 - **Exhibit drawer** (☰) — accessible list of all halls with "Go" buttons
 - **Living minimap**, breadcrumb footprints, and a follow camera with zoom (scroll / pinch)
-- **Day / night cycle** with stars, a moon, and lights that switch on
+- **Sun-arc time slider** — drag the sun along a 24-hour arc for continuous time of day; dawn/dusk golden hour, stars, a moon that rides the opposite arc, and lights that switch on at night (N still toggles day/night)
 - **Weather** — clear / rain / snow, with ground splashes and lingering snow prints
 - **Reactive NPCs** — ducks that scatter, a robot greeter that tracks you
 - **Avatar customizer** (🎨), confetti on completing the museum, promo blimp
@@ -109,9 +109,9 @@ Other quick edits:
 
 ## Roadmap ideas
 
-Passport/stamp book, photo mode, a sun-arc time slider, search bar, EN/ES language
-toggle, and swapping the procedural buildings for GLTF models (the `build*` functions
-are the drop-in points).
+Passport/stamp book, photo mode, search bar, EN/ES language toggle, and swapping
+the procedural buildings for GLTF models (the `build*` functions are the drop-in
+points).
 
 ## Notes & credits
 

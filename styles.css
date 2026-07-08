@@ -322,6 +322,30 @@
     background:#F0EDFB;color:var(--ink);border-radius:11px;padding:8px 16px;
   }
 
+/* ---------- time-of-day panel ---------- */
+.time-panel{
+  position:fixed;top:14px;right:74px;z-index:46;width:254px;
+  background:var(--panel);border-radius:22px;box-shadow:var(--shadow);
+  padding:16px 18px 12px;opacity:0;pointer-events:none;transform:translateY(-8px) scale(.97);
+  transition:all .28s cubic-bezier(.34,1.4,.64,1);
+}
+.time-panel.open{opacity:1;pointer-events:auto;transform:translateY(0) scale(1)}
+.time-panel .c-title{display:flex;align-items:center;justify-content:space-between}
+.t-clock{
+  font-family:'Fredoka',sans-serif;font-weight:600;font-size:14px;
+  background:#F0EDFB;border-radius:9px;padding:2px 9px;font-variant-numeric:tabular-nums;
+}
+#timeArc{display:block;margin:6px auto 2px;touch-action:none;cursor:pointer}
+#timeKnob{cursor:grab}
+#timeKnob:active{cursor:grabbing}
+#timeKnobIcon{user-select:none;pointer-events:none}
+.t-presets{display:flex;gap:8px;justify-content:center;margin-top:4px}
+.t-presets button{
+  font-size:16px;border:none;cursor:pointer;background:#F0EDFB;
+  border-radius:11px;padding:6px 12px;transition:transform .15s;
+}
+.t-presets button:active{transform:scale(.9)}
+
 /* ---------- reduced motion ---------- */
 @media (prefers-reduced-motion: reduce){
   *, *::before, *::after{
