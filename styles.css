@@ -321,3 +321,12 @@
     font-family:'Fredoka',sans-serif;font-weight:600;font-size:13px;border:none;cursor:pointer;
     background:#F0EDFB;color:var(--ink);border-radius:11px;padding:8px 16px;
   }
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+  }
+}

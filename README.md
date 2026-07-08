@@ -27,6 +27,8 @@ the audio, the models, the particles — is generated procedurally in code, so t
 - **Avatar customizer** (🎨), confetti on completing the museum, promo blimp
 - **Synthesized sound** (Web Audio) and **haptics** (`navigator.vibrate`) on mobile
 - **Cinematic intro flyover** and an **idle attract mode** for kiosk use
+- **Deep links** — `#dino` (or any hall id) opens that hall's detail page and runs you there; the URL hash stays shareable as you browse
+- **`prefers-reduced-motion` support** — skips the flyover, attract mode, confetti, and UI animations
 
 ## Project structure
 
@@ -107,9 +109,9 @@ Other quick edits:
 
 ## Roadmap ideas
 
-Passport/stamp book, photo mode, deep-links (`#dino` opens a hall), a sun-arc time
-slider, search bar, EN/ES language toggle, `prefers-reduced-motion` support, and swapping
-the procedural buildings for GLTF models (the `build*` functions are the drop-in points).
+Passport/stamp book, photo mode, a sun-arc time slider, search bar, EN/ES language
+toggle, and swapping the procedural buildings for GLTF models (the `build*` functions
+are the drop-in points).
 
 ## Notes & credits
 

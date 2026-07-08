@@ -1190,6 +1190,7 @@ const confetti = [];
 const confGeo = new THREE.BoxGeometry(.3, .05, .18);
 const confMats = [C.coral, C.teal, C.gold, C.violet, C.pink, C.blue].map(c => mat(c, { roughness:.5 }));
 function confettiBurst(){
+  if(reducedMotion) return;
   for(let i=0;i<140;i++){
     const m = new THREE.Mesh(confGeo, confMats[i % confMats.length]);
     m.castShadow = false;
@@ -1241,6 +1242,7 @@ const joyEl = document.getElementById('joystick');
 const stickEl = document.getElementById('stick');
 const joy = { active:false, x:0, y:0, id:null };
 const isTouch = matchMedia('(pointer:coarse)').matches;
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 if(isTouch){
   document.body.classList.add('touch');
   document.getElementById('introHint').textContent = 'Joystick to walk · double-tap to run there · drag to look around';
@@ -1809,12 +1811,14 @@ function openDetail(e){
   ).join('');
   detailEl.classList.add('open');
   detailEl.dataset.id = e.id;
+  history.replaceState(null, '', '#' + e.id);   // shareable deep link
   sfx.open();
 }
 function closeDetail(){
   detailOpen = false;
   currentExhibit = null;
   detailEl.classList.remove('open');
+  history.replaceState(null, '', location.pathname + location.search);
 }
 document.getElementById('mAction').addEventListener('click', ()=>{
   if(currentExhibit) openDetail(currentExhibit.e);
@@ -2006,20 +2010,35 @@ addEventListener('pointerdown', noteInput);
 addEventListener('wheel', noteInput, { passive:true });
 function updateAttract(){
   const idle = performance.now() - lastInput > 30000;
-  const want = started && !modalOpen && !detailOpen && !drawerOpen && !inside && cine < 0 && idle;
+  const want = !reducedMotion && started && !modalOpen && !detailOpen && !drawerOpen && !inside && cine < 0 && idle;
   if(want && !attract){
     attract = true;
     if(!attractToastShown){ showToast('✨ Touring the campus — press anything to take over'); attractToastShown = true; }
   }
   if(!want && attract) attract = false;
 }
+/* ---------- deep links: #dino (etc.) opens that hall ---------- */
+function hashExhibit(){
+  return exhibits.find(e => '#' + e.id === location.hash) || null;
+}
+function goToHash(){
+  const e = hashExhibit();
+  if(!e) return false;
+  if(inside){ showToast('Step on the gold pad to head back outside first'); return false; }
+  runToExhibit(e);          // auto-run resumes once the detail page is closed
+  openDetail(e);
+  return true;
+}
+addEventListener('hashchange', ()=>{ if(started) goToHash(); });
+
 /* ---------- intro ---------- */
 document.getElementById('startBtn').addEventListener('click', ()=>{
   document.getElementById('intro').classList.add('hide');
   initAudio();                       // audio needs a user gesture
   started = true;
-  cine = 0;                          // kick off the flyover
   camYaw = Math.PI; camPitch = .62; camDist = 17;
+  // deep link or reduced motion skips the flyover
+  if(!goToHash() && !reducedMotion) cine = 0;
   sfx.discover();
 });
 
