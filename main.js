@@ -1291,7 +1291,8 @@ addEventListener('keydown', e=>{
   if(e.code==='KeyN') toggleNight();
   if(e.code==='KeyR') respawn();
   if(e.code==='Escape'){
-    if(drawerOpen) closeDrawer();
+    if(passOpen) closePassport();
+    else if(drawerOpen) closeDrawer();
     else if(custOpen){ custOpen = false; custEl.classList.remove('open'); }
     else if(detailOpen) closeDetail();
     else closeModal();
@@ -1800,6 +1801,8 @@ function openArtifact(a){
   modal.classList.add('show');
   modalOpen = true;
   sfx.open(); buzz(10);
+  const key = a.e.id + ':' + a.h.name;
+  if(!inspected.has(key)){ inspected.add(key); savePassport(); }
 }
 
 function openExhibit(e){
@@ -1823,6 +1826,9 @@ function openExhibit(e){
   sfx.open();
   if(!visited.has(e.id)){
     visited.add(e.id);
+    stampDates[e.id] = new Date().toLocaleDateString(undefined, { month:'short', day:'numeric' });
+    savePassport();
+    passDotEl.classList.add('on');
     document.getElementById('chip-'+e.id).classList.add('done');
     if(visited.size === exhibits.length){
       confettiBurst();
@@ -1963,6 +1969,92 @@ document.getElementById('custBtn').addEventListener('click', ()=>{
   custEl.classList.toggle('open', custOpen);
   if(custOpen) closeTimePanel();
   sfx.ui();
+});
+
+/* ---------- explorer passport ---------- */
+const PASS_KEY = 'wm_passport_v1';
+const stampDates = {};
+const inspected = new Set();
+const passSeen = new Set();          // stamps already viewed in the passport (no re-slam)
+let passOpen = false;
+const passWrap = document.getElementById('passWrap');
+const passDotEl = document.getElementById('passDot');
+
+function savePassport(){
+  try{
+    localStorage.setItem(PASS_KEY, JSON.stringify({
+      visited: [...visited], dates: stampDates, inspected: [...inspected], seen: [...passSeen],
+    }));
+  }catch(e){}
+}
+(function restorePassport(){
+  let d;
+  try{ d = JSON.parse(localStorage.getItem(PASS_KEY) || '{}'); }catch(e){ return; }
+  (d.visited || []).forEach(id=>{
+    const chip = document.getElementById('chip-' + id);
+    if(!chip) return;                // hall no longer exists
+    visited.add(id);
+    chip.classList.add('done');
+  });
+  Object.assign(stampDates, d.dates || {});
+  (d.inspected || []).forEach(k=> inspected.add(k));
+  (d.seen || []).forEach(k=> passSeen.add(k));
+  if([...visited].some(id => !passSeen.has(id))) passDotEl.classList.add('on');
+})();
+
+function buildPassport(){
+  const total = EXHIBIT_DATA.length, n = visited.size;
+  document.getElementById('passCount').textContent = n + ' of ' + total + ' halls stamped';
+  document.getElementById('passBar').style.width = (n / total * 100) + '%';
+  document.getElementById('passGrid').innerHTML = EXHIBIT_DATA.map((e, i)=>{
+    const got = visited.has(e.id);
+    const fresh = got && !passSeen.has(e.id) && !reducedMotion;
+    const dots = got ? (e.highlights || []).map(h=>
+      `<span class="a-dot${inspected.has(e.id + ':' + h.name) ? ' on' : ''}"></span>`).join('') : '';
+    return `<div class="p-slot${got ? ' stamped' : ''}${fresh ? ' fresh' : ''}"
+      style="--rot:${(i % 2 ? 3 : -4) + (i % 3)}deg;--pc:${e.color};animation-delay:${i * .1}s">
+      <div class="p-glyph">${got ? e.glyph : '❔'}</div>
+      <div class="p-name">${got ? e.name : '???'}</div>
+      <div class="p-date">${got ? (stampDates[e.id] || 'stamped') : 'not stamped'}</div>
+      <div class="a-dots">${dots}</div>
+    </div>`;
+  }).join('');
+  const done = n === total;
+  document.getElementById('passSeal').classList.toggle('show', done);
+  document.getElementById('passHint').textContent = done
+    ? 'You explored it all — wear that badge proudly!'
+    : 'Step into a hall to earn its stamp.';
+}
+function openPassport(){
+  buildPassport();
+  const fresh = [...visited].filter(id => !passSeen.has(id));
+  fresh.forEach(id => passSeen.add(id));
+  if(fresh.length){ savePassport(); sfx.discover(); buzz([15, 30, 15]); }
+  else sfx.open();
+  passOpen = true;
+  passWrap.classList.add('show');
+  passDotEl.classList.remove('on');
+  custOpen = false; custEl.classList.remove('open');
+  closeTimePanel();
+}
+function closePassport(){
+  passOpen = false;
+  passWrap.classList.remove('show');
+}
+document.getElementById('passBtn').addEventListener('click', ()=> passOpen ? closePassport() : openPassport());
+document.getElementById('passClose').addEventListener('click', ()=>{ closePassport(); sfx.ui(); });
+passWrap.addEventListener('click', e=>{ if(e.target === passWrap) closePassport(); });
+document.getElementById('passReset').addEventListener('click', ()=>{
+  visited.clear();
+  Object.keys(stampDates).forEach(k => delete stampDates[k]);
+  inspected.clear();
+  passSeen.clear();
+  savePassport();
+  EXHIBIT_DATA.forEach(e=> document.getElementById('chip-' + e.id).classList.remove('done'));
+  passDotEl.classList.remove('on');
+  buildPassport();
+  sfx.ui(); buzz(8);
+  showToast('🎟️ Fresh passport — go explore!');
 });
 
 /* ---------- time-of-day panel (sun-arc slider) ---------- */
@@ -2126,7 +2218,7 @@ addEventListener('pointerdown', noteInput);
 addEventListener('wheel', noteInput, { passive:true });
 function updateAttract(){
   const idle = performance.now() - lastInput > 30000;
-  const want = !reducedMotion && started && !modalOpen && !detailOpen && !drawerOpen && !inside && cine < 0 && idle;
+  const want = !reducedMotion && started && !modalOpen && !detailOpen && !drawerOpen && !passOpen && !inside && cine < 0 && idle;
   if(want && !attract){
     attract = true;
     if(!attractToastShown){ showToast('✨ Touring the campus — press anything to take over'); attractToastShown = true; }

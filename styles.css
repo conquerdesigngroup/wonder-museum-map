@@ -346,6 +346,81 @@
 }
 .t-presets button:active{transform:scale(.9)}
 
+/* ---------- explorer passport ---------- */
+.sky-toggle{position:relative}
+.p-dot{
+  position:absolute;top:5px;right:5px;width:10px;height:10px;border-radius:50%;
+  background:var(--coral, #FF7A59);border:2px solid #fff;transform:scale(0);
+  transition:transform .25s cubic-bezier(.34,1.6,.64,1);
+}
+.p-dot.on{transform:scale(1)}
+.pass-wrap{
+  position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;
+  background:rgba(43,38,80,.35);backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+.pass-wrap.show{opacity:1;pointer-events:auto}
+.passport{
+  width:min(440px, 100%);max-height:calc(100vh - 40px);overflow-y:auto;
+  background:var(--panel);border-radius:26px;box-shadow:var(--shadow);
+  padding:20px 22px 16px;transform:translateY(14px) scale(.97);transition:transform .3s cubic-bezier(.34,1.4,.64,1);
+}
+.pass-wrap.show .passport{transform:translateY(0) scale(1)}
+.p-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.p-head .kicker{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
+.p-head h2{font-family:'Fredoka',sans-serif;font-weight:600;font-size:22px;color:var(--ink);margin-top:2px}
+.p-progress{display:flex;align-items:center;gap:12px;margin:12px 0 14px}
+.p-progress span{font-size:12px;font-weight:800;color:var(--ink-soft);white-space:nowrap}
+.p-bar{flex:1;height:8px;border-radius:99px;background:#F0EDFB;overflow:hidden}
+.p-bar div{height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#8C6BF2,#FF7A59);transition:width .5s cubic-bezier(.3,1,.4,1)}
+.p-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:400px){ .p-grid{grid-template-columns:repeat(2,1fr)} }
+.p-slot{
+  aspect-ratio:1;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;text-align:center;padding:6px;border:2.5px dashed #D9D3F2;color:#B4ADD8;
+  transform:rotate(var(--rot, 0deg));
+}
+.p-slot .p-glyph{font-size:26px;filter:grayscale(1);opacity:.5}
+.p-slot .p-name{font-size:11px;font-weight:800;line-height:1.15}
+.p-slot .p-date{font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.p-slot.stamped{
+  border:2.5px solid var(--pc);color:var(--pc);
+  background:color-mix(in srgb, var(--pc) 9%, #fff);
+  box-shadow:inset 0 0 0 3px #fff, inset 0 0 0 4.5px var(--pc);
+}
+.p-slot.stamped .p-glyph{filter:none;opacity:1}
+.p-slot.stamped .p-name{color:var(--ink)}
+.p-slot.fresh{animation:stampIn .5s cubic-bezier(.2,1.4,.4,1) backwards}
+@keyframes stampIn{
+  from{transform:rotate(calc(var(--rot) - 12deg)) scale(2);opacity:0}
+  62%{transform:rotate(var(--rot)) scale(.92);opacity:1}
+  to{transform:rotate(var(--rot)) scale(1)}
+}
+.a-dots{display:flex;gap:4px;margin-top:3px;min-height:6px}
+.a-dot{width:6px;height:6px;border-radius:50%;background:#E4DFF7}
+.a-dot.on{background:var(--pc)}
+.p-seal{
+  display:none;align-items:center;gap:12px;margin-top:14px;padding:12px 14px;
+  border-radius:16px;background:linear-gradient(100deg,#FFF6E0,#FFEFC8);border:2px solid #F2C94C;
+}
+.p-seal.show{display:flex}
+.p-seal .seal-badge{font-size:30px}
+.p-seal b{font-family:'Fredoka',sans-serif;font-weight:600;font-size:15px;color:var(--ink);display:block}
+.p-seal span{font-size:12px;font-weight:700;color:#9A7B1E}
+.p-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
+.p-foot #passHint{font-size:11.5px;font-weight:700;color:var(--ink-soft)}
+.p-reset{
+  font-family:'Fredoka',sans-serif;font-weight:600;font-size:12px;border:none;cursor:pointer;
+  background:#F0EDFB;color:var(--ink);border-radius:10px;padding:7px 13px;white-space:nowrap;
+}
+.p-reset:active{transform:scale(.94)}
+body.night .passport{background:#403A6B}
+body.night .p-head h2, body.night .p-slot.stamped .p-name{color:#fff}
+body.night .p-slot{border-color:#565087;color:#7C76AC}
+body.night .p-slot.stamped{background:color-mix(in srgb, var(--pc) 22%, #403A6B);box-shadow:inset 0 0 0 3px #403A6B, inset 0 0 0 4.5px var(--pc)}
+body.night .p-bar, body.night .p-reset{background:#565087}
+body.night .p-reset, body.night .p-foot #passHint, body.night .p-progress span{color:#CFC9EE}
+
 /* ---------- reduced motion ---------- */
 @media (prefers-reduced-motion: reduce){
   *, *::before, *::after{

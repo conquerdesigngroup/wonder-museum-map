@@ -20,6 +20,7 @@ the audio, the models, the particles — is generated procedurally in code, so t
 - **Interior rooms** — walk through a doorway to step inside a hall and inspect 3 artifacts each
 - **Exhibit detail pages** — gallery, hours, event schedule, highlights
 - **Exhibit drawer** (☰) — accessible list of all halls with "Go" buttons
+- **Explorer passport** (🎟️) — a stamp book that inks a dated stamp for every hall you enter, tracks the artifacts you inspect, awards a "Junior Scientist" seal for completing all six, and persists across visits (`localStorage`)
 - **Living minimap**, breadcrumb footprints, and a follow camera with zoom (scroll / pinch)
 - **Sun-arc time slider** — drag the sun along a 24-hour arc for continuous time of day; dawn/dusk golden hour, stars, a moon that rides the opposite arc, and lights that switch on at night (N still toggles day/night)
 - **Weather** — clear / rain / snow, with ground splashes and lingering snow prints
@@ -109,7 +110,7 @@ Other quick edits:
 
 ## Roadmap ideas
 
-Passport/stamp book, photo mode, search bar, EN/ES language toggle, and swapping
+Photo mode, search bar, EN/ES language toggle, and swapping
 the procedural buildings for GLTF models (the `build*` functions are the drop-in
 points).
 

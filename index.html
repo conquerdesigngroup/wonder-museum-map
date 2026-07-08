@@ -35,6 +35,7 @@
     <button class="sky-toggle" id="weatherToggle" title="Cycle weather">🌤️</button>
     <button class="sky-toggle" id="soundToggle" title="Toggle sound">🔊</button>
     <button class="sky-toggle" id="custBtn" title="Customize your explorer">🎨</button>
+    <button class="sky-toggle" id="passBtn" title="Explorer passport">🎟️<span class="p-dot" id="passDot"></span></button>
   </div>
 </div>
 
@@ -107,6 +108,32 @@
   <div class="d-foot">
     <button class="btn ghost" id="dPeek">Peek inside</button>
     <button class="btn primary" id="dGo">Run there</button>
+  </div>
+</div>
+
+<!-- Explorer passport -->
+<div class="pass-wrap" id="passWrap">
+  <div class="passport">
+    <div class="p-head">
+      <div>
+        <div class="kicker">Wonder Museum of Science</div>
+        <h2>Explorer Passport</h2>
+      </div>
+      <button class="icon-x" id="passClose">✕</button>
+    </div>
+    <div class="p-progress">
+      <span id="passCount">0 of 6 halls stamped</span>
+      <div class="p-bar"><div id="passBar"></div></div>
+    </div>
+    <div class="p-grid" id="passGrid"></div>
+    <div class="p-seal" id="passSeal">
+      <div class="seal-badge">🏅</div>
+      <div><b>Junior Scientist</b><span>All six halls explored!</span></div>
+    </div>
+    <div class="p-foot">
+      <span id="passHint">Step into a hall to earn its stamp.</span>
+      <button class="p-reset" id="passReset">New passport</button>
+    </div>
   </div>
 </div>
 
