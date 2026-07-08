@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "museum-map",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["--yes", "http-server", ".", "-c-1"],
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "npx --yes http-server . -c-1 -p \"$PORT\""],
       "autoPort": true
     }
   ]
