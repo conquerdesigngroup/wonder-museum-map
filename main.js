@@ -96,29 +96,45 @@ function cone(r, h, seg, color){
 }
 
 /* text label rendered onto a canvas -> plane */
+const signRedraws = [];   // redrawn once the webfont finishes loading
 function makeSign(text, bg='#3B3563', fg='#FFFFFF', w=6, h=1.7){
   const cv = document.createElement('canvas');
   cv.width = 512; cv.height = Math.round(512*h/w);
   const ctx = cv.getContext('2d');
-  const r = 46;
-  ctx.fillStyle = bg;
-  ctx.beginPath();
-  ctx.moveTo(r,0); ctx.lineTo(cv.width-r,0); ctx.quadraticCurveTo(cv.width,0,cv.width,r);
-  ctx.lineTo(cv.width,cv.height-r); ctx.quadraticCurveTo(cv.width,cv.height,cv.width-r,cv.height);
-  ctx.lineTo(r,cv.height); ctx.quadraticCurveTo(0,cv.height,0,cv.height-r);
-  ctx.lineTo(0,r); ctx.quadraticCurveTo(0,0,r,0); ctx.fill();
-  ctx.fillStyle = fg;
-  ctx.font = '600 92px Fredoka, sans-serif';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(text, cv.width/2, cv.height/2 + 6);
   const tex = new THREE.CanvasTexture(cv);
   tex.anisotropy = 4;
+  function draw(){
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    const r = 46;
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.moveTo(r,0); ctx.lineTo(cv.width-r,0); ctx.quadraticCurveTo(cv.width,0,cv.width,r);
+    ctx.lineTo(cv.width,cv.height-r); ctx.quadraticCurveTo(cv.width,cv.height,cv.width-r,cv.height);
+    ctx.lineTo(r,cv.height); ctx.quadraticCurveTo(0,cv.height,0,cv.height-r);
+    ctx.lineTo(0,r); ctx.quadraticCurveTo(0,0,r,0); ctx.fill();
+    ctx.fillStyle = fg;
+    // shrink the font until the text fits inside the pill with padding
+    let size = 92;
+    const maxW = cv.width - 2*r - 24;
+    ctx.font = `600 ${size}px Fredoka, sans-serif`;
+    const tw = ctx.measureText(text).width;
+    if(tw > maxW){
+      size = Math.floor(size * maxW / tw);
+      ctx.font = `600 ${size}px Fredoka, sans-serif`;
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, cv.width/2, cv.height/2 + size*.07);
+    tex.needsUpdate = true;
+  }
+  draw();
+  signRedraws.push(draw);
   const mesh = new THREE.Mesh(
     new THREE.PlaneGeometry(w, h),
     new THREE.MeshBasicMaterial({ map:tex, transparent:true })
   );
   return mesh;
 }
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=> signRedraws.forEach(f => f()));
 
 /* ---------- sound engine (all synthesized, no audio files) ---------- */
 let AC = null, master = null, noiseBuf = null, rainGain = null, muted = false;
