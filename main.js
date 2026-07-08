@@ -71,6 +71,8 @@ scene.add(sun);
 const colliders = [];           // {x, z, r}
 const animated = [];            // {fn(t, dt)}
 const WORLD_R = 74;             // walkable radius
+const HALL_COUNT = 9;           // Discovery Gateway's nine permanent exhibits
+const hallAngle = i => i * Math.PI*2/HALL_COUNT + Math.PI/HALL_COUNT;
 
 function addCollider(x, z, r){ colliders.push({x, z, r}); }
 
@@ -286,12 +288,10 @@ function grassPatch(x, z, r, color){
   scene.add(m);
 }
 // one lawn under each hall — centered on the hall's angle, just outside the loop road
-for(let i=0;i<6;i++){
-  const a = i*Math.PI/3 + Math.PI/6;
+for(let i=0;i<HALL_COUNT;i++){
+  const a = hallAngle(i);
   grassPatch(Math.cos(a)*51, Math.sin(a)*51, 11.5, i%2 ? C.grassB : C.grass);
 }
-// two filler meadows on the east/west axis, between halls
-[[ 55, 0, 10, C.grass], [-56, 2, 10, C.grass]].forEach(p => grassPatch(...p));
 
 /* ---------- paths (loop + spokes) ---------- */
 const pathGroup = new THREE.Group();
@@ -311,9 +311,9 @@ const plazaRim = new THREE.Mesh(new THREE.TorusGeometry(13, .28, 6, 40), mat(C.p
 plazaRim.rotation.x = Math.PI/2; plazaRim.position.y = .36;
 pathGroup.add(plazaRim);
 
-// six spokes to exhibits — end at the loop road
-for(let i=0;i<6;i++){
-  const a = i * Math.PI/3 + Math.PI/6;
+// one spoke per exhibit — ends at the loop road
+for(let i=0;i<HALL_COUNT;i++){
+  const a = hallAngle(i);
   const len = 24;
   pathSeg(Math.cos(a)*(13+len/2), Math.sin(a)*(13+len/2), len, 5.4, -a + Math.PI/2);
 }
@@ -323,8 +323,8 @@ for(let i=0;i<24;i++){
   pathSeg(Math.cos(a)*37, Math.sin(a)*37, 10.2, 5, -a + Math.PI/2);
 }
 // crosswalk stripes on spokes
-for(let i=0;i<6;i++){
-  const a = i * Math.PI/3 + Math.PI/6;
+for(let i=0;i<HALL_COUNT;i++){
+  const a = hallAngle(i);
   for(let s=0;s<4;s++){
     const d = 20 + s*2.2;
     const m = new THREE.Mesh(new THREE.BoxGeometry(.9, .05, 3.6), mat(0xFFFFFF));
@@ -411,16 +411,16 @@ function lamp(x, z){
 
 /* scatter greenery — keep clear of paths */
 const scatter = [
-  [ 30,-42], [ 42,-26], [-30,-44], [-46,-22], [ 46, 20], [ 34, 40],
-  [-30, 44], [-48, 26], [ 6,-52], [ -8,-50], [ 8, 54], [-10, 52],
+  [ 32,-45], [ 42,-26], [-30,-44], [-46,-22], [ 55, 17], [ 34, 40],
+  [-30, 44], [-48, 26], [ 6,-52], [-14,-56], [ 8, 54], [-16, 58],
   [ 58,-10], [ 60, 10], [-58,-12], [-60, 12], [ 20,-56], [-22,-56],
   [ 22, 56], [-24, 54],
 ];
 scatter.forEach(([x,z],i)=> tree(x, z, .85 + (i%3)*.25));
-bush( 16,-40); bush(-18,-38, 1.2); bush( 18, 42, 1.1); bush(-16, 40);
-rock( 50,-18, 1.3); rock(-52, 18); rock( 4, 60, 1.5); rock(-6,-60, 1.2);
-for(let i=0;i<6;i++){
-  const a = i*Math.PI/3;
+bush( 14,-42); bush(-18,-38, 1.2); bush( 14, 44, 1.1); bush(-18, 39);
+rock( 54,-22, 1.3); rock(-52, 18); rock( 4, 60, 1.5); rock(-6,-60, 1.2);
+for(let i=0;i<HALL_COUNT;i++){
+  const a = i * Math.PI*2/HALL_COUNT;      // midway between spokes
   lamp(Math.cos(a)*15.5, Math.sin(a)*15.5);
   bench(Math.cos(a+.26)*17.6, Math.sin(a+.26)*17.6, -a - Math.PI/2 - .26);
 }
@@ -436,9 +436,21 @@ for(let i=0;i<64;i++){
 /* ---------- exhibit buildings ---------- */
 const exhibits = [];
 
-function exhibitBase(g, w, color){
-  const plinth = cyl(w*.85, w*.95, .7, 8, C.pathEdge);
-  plinth.position.y = .35; g.add(plinth);
+/* adopt a Discovery Gateway diorama tile (12×12, from exhibits.js) as the hall model:
+   strip its point light, register its emissive materials with the sun-arc so windows
+   glow after dark, and seat it on the lawn */
+DG.setTheme('day');
+function adoptTile(g, id){
+  const t = DG.createExhibit(id);
+  DG.stripLights(t);
+  t.traverse(o=>{
+    if(o.isMesh && o.material && o.material.emissive && o.material.emissiveIntensity > 0){
+      const day = o.material.emissiveIntensity;
+      glowMats.push({ m:o.material, day, night: Math.min(2, day / 0.12) });   // undo the day-theme dimming after dark
+    }
+  });
+  t.position.y = .42;
+  g.add(t);
 }
 function glowPad(g, dist, color){
   const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, .3, 20),
@@ -455,245 +467,110 @@ function glowPad(g, dist, color){
   animated.push({ fn:(t)=>{ ring.scale.setScalar(1 + Math.sin(t*2.4)*.05); } });
   return pad;
 }
-
-/* 1 — Space Dome */
-function buildSpace(g){
-  exhibitBase(g, 7, C.violet);
-  const base = cyl(5.4, 6, 2.4, 8, C.violet); base.position.y = 1.8; g.add(base);
-  const dome = sph(4.6, C.cream, 8); dome.scale.y = .78; dome.position.y = 3.4; g.add(dome);
-  const band = cyl(4.75, 4.75, .7, 8, C.violetD); band.position.y = 3.1; g.add(band);
-  // rocket
-  const rocket = new THREE.Group();
-  const bodyR = cyl(.55, .75, 2.6, 8, C.white); bodyR.position.y = 1.3; rocket.add(bodyR);
-  const noseR = cone(.62, 1.1, 8, C.coral); noseR.position.y = 3.1; rocket.add(noseR);
-  for(let i=0;i<3;i++){
-    const fin = box(.16, .9, .8, C.coral);
-    const a = i*Math.PI*2/3;
-    fin.position.set(Math.cos(a)*.72, .45, Math.sin(a)*.72);
-    fin.rotation.y = -a;
-    rocket.add(fin);
-  }
-  rocket.position.set(4.6, 1.2, -2.4);
-  g.add(rocket);
-  animated.push({ fn:(t)=>{ rocket.position.y = 1.2 + Math.sin(t*1.6)*.35; rocket.rotation.y = t*.5; } });
-  // little planet
-  const pl = sph(.9, C.teal, 6); pl.position.set(-4.8, 6.2, -1);
-  const ringP = new THREE.Mesh(new THREE.TorusGeometry(1.4, .12, 6, 20), mat(C.gold));
-  ringP.rotation.x = Math.PI/2.4; ringP.position.copy(pl.position);
-  g.add(pl, ringP);
-  animated.push({ fn:(t)=>{ pl.position.y = 6.2 + Math.sin(t*1.2+1)*.3; ringP.position.y = pl.position.y; ringP.rotation.z = t*.6; } });
-}
-
-/* 2 — Dino Hall */
-function buildDino(g){
-  exhibitBase(g, 7, C.gold);
-  const hall = box(9, 4.2, 7, C.gold); hall.position.y = 2.4; g.add(hall);
-  const roof = box(9.8, .7, 7.8, C.coral); roof.position.y = 4.85; g.add(roof);
-  const door = box(2.2, 2.6, .4, C.ink); door.position.set(0, 1.5, 3.55); g.add(door);
-  [-3, 3].forEach(x=>{
-    const win = box(1.6, 1.4, .3, C.blue, { emissive:C.blue, emissiveIntensity:.25 });
-    win.position.set(x, 2.8, 3.55); g.add(win);
-    glowMats.push({ m:win.material, day:.25, night:1.1 });
-  });
-  // long-neck dino peeking over the roof
-  const dino = new THREE.Group();
-  const body = sph(1.7, C.green, 7); body.scale.set(1.35, 1, 1); body.position.y = 1.4; dino.add(body);
-  const neck = cyl(.45, .6, 3.4, 7, C.green); neck.position.set(1.6, 3.1, 0); neck.rotation.z = -.35; dino.add(neck);
-  const head = sph(.72, C.green, 6); head.position.set(2.35, 4.7, 0); head.scale.set(1.25, .9, .9); dino.add(head);
-  [1,-1].forEach(s=>{
-    const eye = sph(.13, C.ink, 5); eye.position.set(2.75, 4.85, s*.34); dino.add(eye);
-  });
-  const tail = cone(.5, 2.6, 7, C.green); tail.rotation.z = Math.PI/2 + .5; tail.position.set(-2.6, 1.5, 0); dino.add(tail);
-  dino.position.set(-1, 4.2, -1.4); dino.scale.setScalar(1.15);
-  g.add(dino);
-  animated.push({ fn:(t)=>{ dino.rotation.y = Math.sin(t*.5)*.25; } });
-}
-
-/* 3 — Robotics Lab */
-function buildRobot(g){
-  exhibitBase(g, 7, C.teal);
-  const lab = box(8, 5, 6.4, C.teal); lab.position.y = 2.85; g.add(lab);
-  const stripe = box(8.2, .8, 6.6, C.tealD); stripe.position.y = 4.4; g.add(stripe);
-  const door = box(2.4, 2.8, .4, C.cream); door.position.set(0, 1.6, 3.3); g.add(door);
-  // robot head on the roof
-  const head = box(3, 2.4, 2.6, C.cream); head.position.y = 6.6; g.add(head);
-  [-0.75, 0.75].forEach(x=>{
-    const eye = sph(.42, C.coral, 6, { emissive:C.coral, emissiveIntensity:.9 });
-    eye.position.set(x, 6.8, 1.35); g.add(eye);
-    animated.push({ fn:(t)=>{ eye.scale.setScalar(.9 + Math.abs(Math.sin(t*2))*.25); } });
-  });
-  const antenna = cyl(.07, .07, 1.4, 5, C.ink); antenna.position.y = 8.4; g.add(antenna);
-  const bulb = sph(.3, C.gold, 6, { emissive:C.gold, emissiveIntensity:1 }); bulb.position.y = 9.2; g.add(bulb);
-  animated.push({ fn:(t)=>{ bulb.material.emissiveIntensity = .5 + Math.abs(Math.sin(t*3)); } });
-  // gear
-  const gear = new THREE.Group();
-  const gc = cyl(1.1, 1.1, .4, 8, C.gold); gc.rotation.x = Math.PI/2; gear.add(gc);
-  for(let i=0;i<8;i++){
-    const tooth = box(.4, .4, .42, C.gold);
-    const a = i*Math.PI/4;
-    tooth.position.set(Math.cos(a)*1.25, Math.sin(a)*1.25, 0);
-    gear.add(tooth);
-  }
-  gear.position.set(4.5, 5.4, .5); g.add(gear);
-  animated.push({ fn:(t)=>{ gear.rotation.z = t*.8; } });
-}
-
-/* 4 — Ocean World */
-function buildOcean(g){
-  exhibitBase(g, 7, C.blue);
-  const tank = cyl(4.6, 5, 4.4, 10, C.blue, { roughness:.5 }); tank.position.y = 2.7; g.add(tank);
-  const waterTop = cyl(4.2, 4.2, .5, 10, C.water, { emissive:C.water, emissiveIntensity:.25 });
-  waterTop.position.y = 5.05; g.add(waterTop);
-  const rim = cyl(4.9, 4.9, .6, 10, C.cream); rim.position.y = 5.3; g.add(rim);
-  // whale tail rising from the tank
-  const tail = new THREE.Group();
-  const stem = cyl(.5, .8, 1.8, 7, C.blueD); stem.position.y = .9; tail.add(stem);
-  [-1, 1].forEach(s=>{
-    const fluke = sph(1, C.blueD, 6);
-    fluke.scale.set(1.4, .45, .8);
-    fluke.position.set(s*1.1, 1.9, 0);
-    fluke.rotation.z = s*.5;
-    tail.add(fluke);
-  });
-  tail.position.y = 5.2; g.add(tail);
-  animated.push({ fn:(t)=>{ tail.rotation.z = Math.sin(t*1.1)*.16; tail.position.y = 5.2 + Math.sin(t*1.1+.5)*.15; } });
-  // bubbles
-  for(let i=0;i<3;i++){
-    const b = sph(.24+.08*i, C.white, 6, { transparent:true, opacity:.8 });
-    g.add(b);
-    animated.push({ fn:(t)=>{
-      const p = (t*.35 + i*.33) % 1;
-      b.position.set(Math.sin(i*4+t)*1.2 + 2.6, 5.3 + p*3.4, Math.cos(i*3)*1.2);
-      b.material.opacity = .85*(1-p);
-    }});
-  }
-}
-
-/* 5 — Physics Pavilion */
-function buildPhysics(g){
-  exhibitBase(g, 7, C.coral);
-  const py = cone(5.6, 6.4, 4, C.coral); py.position.y = 3.5; py.rotation.y = Math.PI/4; g.add(py);
-  const tip = sph(.6, C.gold, 6, { emissive:C.gold, emissiveIntensity:.6 }); tip.position.y = 7.1; g.add(tip);
-  const door = box(2, 2.6, .5, C.ink); door.position.set(0, 1.5, 3.6); door.rotation.x = -.14; g.add(door);
-  // Newton's cradle
-  const cradle = new THREE.Group();
-  const bar = box(3.6, .18, .18, C.ink); bar.position.y = 2.6; cradle.add(bar);
-  [-1.2, 1.2].forEach(x=>{
-    const leg = box(.16, 2.6, .16, C.ink); leg.position.set(x*1.4, 1.3, 0); cradle.add(leg);
-  });
-  const balls = [];
-  for(let i=0;i<4;i++){
-    const wire = cyl(.03,.03,1.3,4,C.ink);
-    const ball = sph(.4, [C.teal,C.gold,C.violet,C.blue][i], 6);
-    cradle.add(wire, ball);
-    balls.push({wire, ball, x:-.95 + i*.65});
-  }
-  cradle.position.set(4.9, 0, 1.6); cradle.rotation.y = -.5; g.add(cradle);
-  animated.push({ fn:(t)=>{
-    const sw = Math.sin(t*2.6);
-    balls.forEach((b, i)=>{
-      let ang = 0;
-      if(i===0 && sw<0) ang = sw*.7;
-      if(i===3 && sw>0) ang = sw*.7;
-      b.wire.position.set(b.x + Math.sin(ang)*.65, 2.6 - Math.cos(ang)*.65 + .32, 0);
-      b.wire.rotation.z = -ang;
-      b.ball.position.set(b.x + Math.sin(ang)*1.3, 2.6 - Math.cos(ang)*1.3, 0);
-    });
-  }});
-}
-
-/* 6 — Bio Garden */
-function buildBio(g){
-  exhibitBase(g, 7, C.green);
-  const house = box(7.4, 3.4, 6, 0xD9F2E2, { transparent:true, opacity:.85, roughness:.3 });
-  house.position.y = 2; g.add(house);
-  const frame = box(7.8, .35, 6.4, C.green); frame.position.y = 3.85; g.add(frame);
-  const roofL = box(4.6, .3, 6.6, C.green); roofL.position.set(-1.9, 5, 0); roofL.rotation.z = .5; g.add(roofL);
-  const roofR = box(4.6, .3, 6.6, C.green); roofR.position.set(1.9, 5, 0); roofR.rotation.z = -.5; g.add(roofR);
-  const door = box(1.8, 2.4, .3, C.green); door.position.set(0, 1.4, 3.1); g.add(door);
-  // DNA helix
-  const helix = new THREE.Group();
-  for(let i=0;i<9;i++){
-    const y = i*.55;
-    const a = i*.75;
-    const s1 = sph(.26, C.pink, 6);  s1.position.set(Math.cos(a)*.85, y, Math.sin(a)*.85);
-    const s2 = sph(.26, C.violet, 6); s2.position.set(-Math.cos(a)*.85, y, -Math.sin(a)*.85);
-    const rung = box(1.55, .1, .1, C.cream);
-    rung.position.y = y; rung.rotation.y = -a;
-    helix.add(s1, s2, rung);
-  }
-  helix.position.set(5, 1, -1.5); g.add(helix);
-  animated.push({ fn:(t)=>{ helix.rotation.y = t*.7; } });
-  // potted sprout
-  const pot = cyl(.5, .35, .7, 7, 0xC96F4A); pot.position.set(-4.6, .35, 2.2); g.add(pot);
-  const sprout = sph(.55, C.green, 6); sprout.position.set(-4.6, 1.1, 2.2); g.add(sprout);
-}
-
 const EXHIBIT_DATA = [
-  { id:'space',  name:'Space Dome',        glyph:'🚀', color:'#8C6BF2', build:buildSpace,
-    desc:'Our 360° planetarium takes you from the launchpad to the edge of the observable universe. Catch a live star show every hour.',
-    fact:'Light from the Andromeda galaxy left home 2.5 million years ago — before humans existed.',
-    hours:'Open 9:30 – 17:00',
-    events:[ {time:'11:00', name:'Live star show: Journey to Jupiter'}, {time:'14:30', name:'Ask an astronomer Q&A'} ],
+  { id:'kids-eye-view', name:'Kids Eye View', glyph:'🏙️', color:'#EF7A5A',
+    build: g => adoptTile(g, 'kids-eye-view'),
+    desc:'A kid-sized city where you run the show — shop the mini grocery store, fix cars in the mechanic shop, and raise the skyline in the construction zone.',
+    fact:'Pretend play is real work: acting out grown-up jobs is how kids build planning, empathy, and problem-solving skills.',
+    hours:'Open 10:00 – 18:00',
+    events:[ {time:'10:30', name:'Stock the store: grocery scavenger hunt'}, {time:'14:00', name:'Hard-hat huddle: build a block tower'} ],
     highlights:[
-      { emoji:'🔭', name:'Meteorite Chunk', blurb:'A 4.6-billion-year-old iron fragment — older than Earth itself. Yes, you can touch it.' },
-      { emoji:'🛰️', name:'Sputnik Replica', blurb:'Full-scale model of the first human-made object to orbit our planet.' },
-      { emoji:'🌌', name:'Star Projector', blurb:'The dome\'s optical heart — it paints 20,000 stars on the ceiling.' },
+      { emoji:'🛒', name:'Mini Grocery', blurb:'Grab a cart, scan the goods, and staff the checkout — the register really beeps.' },
+      { emoji:'🔧', name:'Mechanic Shop', blurb:'Roll a tire, pop the hood, and give the shop car its 10,000-smile service.' },
+      { emoji:'🚧', name:'Construction Zone', blurb:'Foam blocks, a kid-powered crane, and a skyline that never stays the same.' },
     ] },
-  { id:'dino',   name:'Dino Hall',         glyph:'🦕', color:'#FFC145', build:buildDino,
-    desc:'Walk beneath a full-size Brachiosaurus skeleton and dig for fossils in our paleontology pit. Watch out — Rex likes visitors.',
-    fact:'T. rex lived closer in time to you than to Stegosaurus. The dinosaur age was that long.',
-    hours:'Open 9:30 – 17:30',
-    events:[ {time:'10:30', name:'Fossil dig for junior paleontologists'}, {time:'15:00', name:'Meet Rex: skull cast talk'} ],
+  { id:'i-dig-dinos', name:'I Dig Dinos', glyph:'🦖', color:'#B98A5A',
+    build: g => adoptTile(g, 'i-dig-dinos'),
+    desc:'Brush away the dig pit to uncover a buried skeleton, sort fossils in the ID lab, and come nose-to-nose with a toothy skull display.',
+    fact:'Utah is dinosaur country — the state fossil is the Allosaurus, and some of the world\'s richest dig sites are a day trip away.',
+    hours:'Open 10:00 – 18:00',
+    events:[ {time:'11:00', name:'Junior dig: tools out, brushes ready'}, {time:'15:00', name:'Fossil ID lab: what did you find?'} ],
     highlights:[
-      { emoji:'🦴', name:'Brachio Femur', blurb:'A two-meter thigh bone you are welcome to hug. Please do.' },
-      { emoji:'🥚', name:'Nest Fossil', blurb:'A clutch of titanosaur eggs discovered in Patagonia, 80 million years old.' },
-      { emoji:'🦖', name:'Rex Skull Cast', blurb:'Bite force: six tons. Number of times it brushed: zero.' },
+      { emoji:'🦴', name:'Dig Pit', blurb:'A half-excavated skeleton hides under the sand — grab a brush and finish the job.' },
+      { emoji:'🔬', name:'Fossil ID Lab', blurb:'Match bones, teeth, and claws to the dinosaurs they came from.' },
+      { emoji:'💀', name:'Skull Display', blurb:'A grinning skull cast with teeth like bananas. Brave kids may pose for photos.' },
     ] },
-  { id:'robot',  name:'Robotics Lab',      glyph:'🤖', color:'#2EC4B6', build:buildRobot,
-    desc:'Program a robot arm, race micro-bots, and meet our resident humanoid greeter. New builds ship from the maker space weekly.',
-    fact:'The word “robot” comes from robota — Czech for forced labor — coined in a 1920 play.',
-    hours:'Open 10:00 – 17:00',
-    events:[ {time:'12:00', name:'Micro-bot races (bring your reflexes)'}, {time:'16:00', name:'Build-a-bot open workshop'} ],
+  { id:'stillson-river-railroad', name:'Stillson River Railroad', glyph:'🚂', color:'#4A6FA5',
+    build: g => adoptTile(g, 'stillson-river-railroad'),
+    desc:'All aboard at the depot! Drive the locomotive, work the signals, and top off the tank at the water tower on the Stillson River line.',
+    fact:'Real freight trains can take more than a mile to stop — that\'s why crossings always give trains the right of way.',
+    hours:'Open 10:00 – 18:00',
+    events:[ {time:'10:00', name:'First whistle: morning departure'}, {time:'13:30', name:'Signals & switches: run the line'} ],
     highlights:[
-      { emoji:'🦾', name:'Robo Arm MK-II', blurb:'A programmable arm that stacks blocks — and occasionally steals snacks.' },
-      { emoji:'🐜', name:'Micro-bot Swarm', blurb:'120 tiny robots that organize themselves like an ant colony.' },
-      { emoji:'💬', name:'Chat Head', blurb:'Our greeter robot\'s spare head. He says he\'s fine with it.' },
+      { emoji:'🚂', name:'Locomotive Cab', blurb:'Climb in, ring the bell, and ease the throttle forward. Gently, engineer.' },
+      { emoji:'🏠', name:'Stillson Depot', blurb:'Stamp tickets and call the all-aboard from behind the station window.' },
+      { emoji:'💧', name:'Water Tower', blurb:'Old steam engines were thirsty — swing the spout and fill \'er up.' },
     ] },
-  { id:'ocean',  name:'Ocean World',       glyph:'🐋', color:'#5AA9E6', build:buildOcean,
-    desc:'A three-story living reef tank, a touch pool of rays, and a deep-sea theater lit only by bioluminescence.',
-    fact:'We have better maps of Mars than of our own ocean floor — over 80% is still unmapped.',
-    hours:'Open 9:30 – 17:00',
-    events:[ {time:'11:30', name:'Ray touch-pool feeding'}, {time:'14:00', name:'Deep-sea theater: Creatures of the dark'} ],
+  { id:'the-bee-garden', name:'The Bee Garden', glyph:'🐝', color:'#FFC145',
+    build: g => adoptTile(g, 'the-bee-garden'),
+    desc:'Climb through a honeycomb, scale the pollinator tower, and watch thousands of real honeybees at work in the live hive.',
+    fact:'One honeybee makes about 1/12 of a teaspoon of honey in her whole life — teamwork is everything.',
+    hours:'Open 10:00 – 18:00',
+    events:[ {time:'11:30', name:'Find the queen: live hive watch'}, {time:'14:30', name:'Waggle dance-along'} ],
     highlights:[
-      { emoji:'🪸', name:'Living Reef', blurb:'A coral city hosting 90 species and one famously grumpy eel.' },
-      { emoji:'🐙', name:'Ray Touch Pool', blurb:'Velvet-soft rays that glide up for fingertip hellos.' },
-      { emoji:'🔦', name:'Abyss Theater', blurb:'A room lit only by creatures that make their own light.' },
+      { emoji:'🗼', name:'Pollinator Tower', blurb:'Climb flower to flower like a bee on her morning rounds.' },
+      { emoji:'🍯', name:'Honey Climber', blurb:'A honeycomb maze of hexagon cells to scramble through.' },
+      { emoji:'🐝', name:'Live Hive', blurb:'A glass-walled colony of real bees. Can you spot the queen?' },
     ] },
-  { id:'physics',name:'Physics Pavilion',  glyph:'⚡', color:'#FF7A59', build:buildPhysics,
-    desc:'Launch pendulums, bend light, and stand inside a giant Newton’s cradle. Every exhibit here is hands-on by design.',
-    fact:'If you removed the empty space from atoms, all of humanity would fit inside a sugar cube.',
-    hours:'Open 10:00 – 17:30',
-    events:[ {time:'13:00', name:'Liquid nitrogen demo (loud, cold, great)'}, {time:'15:30', name:'Walk-in rainbow: light lab tour'} ],
+  { id:'sensory-story-factory', name:'Sensory Room & Story Factory', glyph:'🎭', color:'#8F7BC0',
+    build: g => adoptTile(g, 'sensory-story-factory'),
+    desc:'Tell your tale on the story stage, star in your own comic panels, then dial the world down in the calming glow of the sensory room.',
+    fact:'Everyone\'s senses work a little differently — this space lets you turn the world up or down until it fits just right.',
+    hours:'Open 10:00 – 18:00',
+    events:[ {time:'10:30', name:'Story circle: once upon a morning'}, {time:'15:30', name:'Make-a-comic workshop'} ],
     highlights:[
-      { emoji:'🎡', name:'Momentum Wall', blurb:'A giant Newton\'s cradle you swing with your own two hands.' },
-      { emoji:'🌈', name:'Light Bender', blurb:'Prisms, lasers, and a rainbow you can literally walk through.' },
-      { emoji:'🧲', name:'Magnet Table', blurb:'Ferrofluid sculptures that dance and spike to magnets you control.' },
+      { emoji:'🎭', name:'Story Stage', blurb:'Costumes, props, and a spotlight — the audience is waiting.' },
+      { emoji:'🗯️', name:'Comic Panels', blurb:'Pose frame by frame and turn yourself into a superhero strip.' },
+      { emoji:'🔮', name:'Sensory Orbs', blurb:'Soft glowing spheres that shift color at your touch.' },
     ] },
-  { id:'bio',    name:'Bio Garden',        glyph:'🧬', color:'#63C97B', build:buildBio,
-    desc:'A living greenhouse of carnivorous plants, a butterfly vivarium, and a DNA lab where you can extract your own genes.',
-    fact:'You share about 60% of your DNA with a banana. Genetics is humbling like that.',
-    hours:'Open 9:00 – 16:30',
-    events:[ {time:'12:00', name:'Venus flytrap feeding (RIP, cricket)'}, {time:'14:30', name:'Extract your own DNA lab'} ],
+  { id:'saving-lives', name:'Saving Lives', glyph:'🚁', color:'#E0574F',
+    build: g => adoptTile(g, 'saving-lives'),
+    desc:'Suit up for a rescue: fly the Life Flight helicopter from its helipad, treat patients in the emergency department, and gear up in the rescue hangar.',
+    fact:'Real Life Flight crews can be off the ground just minutes after a call comes in — every second counts.',
+    hours:'Open 10:00 – 18:00',
+    events:[ {time:'11:00', name:'Life Flight liftoff: crew briefing'}, {time:'14:00', name:'Teddy bear triage in the ER'} ],
     highlights:[
-      { emoji:'🪴', name:'Carnivore Corner', blurb:'Flytraps, pitchers, and sundews — fed daily at noon sharp.' },
-      { emoji:'🦋', name:'Butterfly Vivarium', blurb:'400 free-flying butterflies. Fair warning: they may land on you.' },
-      { emoji:'🧫', name:'Gene Lab', blurb:'Extract real DNA from a strawberry — then from yourself.' },
+      { emoji:'🚁', name:'Life Flight Helicopter', blurb:'A kid-sized chopper on its own helipad. Rotors up, checklist done, clear to lift.' },
+      { emoji:'🏥', name:'Emergency Department', blurb:'Take a pulse, wrap a cast, and make the teddy bear all better.' },
+      { emoji:'🛠️', name:'Rescue Hangar', blurb:'Flight suits, headsets, and the gear real rescue crews count on.' },
     ] },
-];
+  { id:'utah-jazz-court', name:'Utah Jazz Court', glyph:'🏀', color:'#2EC4B6',
+    build: g => adoptTile(g, 'utah-jazz-court'),
+    desc:'Lace up on a kid-sized Jazz court — sink hoops, run the scoreboard, and call the play-by-play from the bench.',
+    fact:'A regulation NBA rim stands 10 feet high. These ones are set just right for a kid-sized slam dunk.',
+    hours:'Open 10:00 – 18:00',
+    events:[ {time:'12:30', name:'Free-throw challenge'}, {time:'16:00', name:'Buzzer-beater shootout'} ],
+    highlights:[
+      { emoji:'🏀', name:'Mini Court', blurb:'Real hardwood feel, half-pint scale, full-size crowd noise (that\'s you).' },
+      { emoji:'🎯', name:'Twin Hoops', blurb:'Two heights, zero excuses. Count it!' },
+      { emoji:'📟', name:'Scoreboard', blurb:'Run the clock and the score — somebody has to be the ref.' },
+    ] },
+  { id:'art-lab', name:'Art Lab', glyph:'🎨', color:'#FF6FB1',
+    build: g => adoptTile(g, 'art-lab'),
+    desc:'A working studio where the mess is the point — paint at the big easels, mix colors on the giant palette, and hang your masterpiece before you go.',
+    fact:'In process art there\'s no wrong answer — experimenting with the materials is the masterpiece.',
+    hours:'Open 10:00 – 18:00',
+    events:[ {time:'10:00', name:'Open studio: fresh paper, big brushes'}, {time:'15:00', name:'Giant palette color-mix lab'} ],
+    highlights:[
+      { emoji:'🎨', name:'Giant Palette', blurb:'A table-sized palette with paint pools you can really mix.' },
+      { emoji:'🖼️', name:'Easel Studio', blurb:'Side-by-side easels under the skylight glow — pick a brush, any brush.' },
+      { emoji:'🖌️', name:'Gallery Wall', blurb:'Today\'s masterpieces, hung and lit. One spot is saved for yours.' },
+    ] },
+  { id:'steam-lab', name:'STEAM Lab', glyph:'🧪', color:'#5AA9E6',
+    build: g => adoptTile(g, 'steam-lab'),
+    desc:'Science, tech, engineering, art, and math collide — launch the test rocket, spin the rooftop gears, and brew a bubbling beaker experiment.',
+    fact:'The A in STEAM stands for Art — because inventing something new takes an artist\'s imagination too.',
+    hours:'Open 10:00 – 18:00',
+    events:[ {time:'11:30', name:'Rocket countdown: 3… 2… 1…'}, {time:'14:30', name:'Gear-works engineering challenge'} ],
+    highlights:[
+      { emoji:'🚀', name:'Test Rocket', blurb:'A candy-striped rocket on a launch ring, always at T-minus soon.' },
+      { emoji:'⚙️', name:'Roof Gear', blurb:'A crown of gears you set spinning from below.' },
+      { emoji:'🧪', name:'Bubbling Beaker', blurb:'A beaker that fizzes and glows — safe science, maximum drama.' },
+    ] },
+]
 
 EXHIBIT_DATA.forEach((data, i)=>{
-  const a = i * Math.PI/3 + Math.PI/6;
+  const a = hallAngle(i);
   const R = 46;
   const g = new THREE.Group();
   g.position.set(Math.cos(a)*R, 0, Math.sin(a)*R);
@@ -868,7 +745,7 @@ const gondola = box(2.4, 1, 1.2, C.ink); gondola.position.y = -3.6; blimp.add(go
 [-1, 1].forEach(s=>{
   const strut = cyl(.06, .06, 1.2, 4, C.ink); strut.position.set(s*.8, -3, 0); blimp.add(strut);
 });
-const banner = makeSign('SUMMER OF SPACE ✦ JUN – AUG', '#3B3563', '#FFC145', 15, 2.2);
+const banner = makeSign('DISCOVERY GATEWAY ✦ EXPLORE · CREATE · PLAY', '#3B3563', '#FFC145', 15, 2.2);
 banner.material.side = THREE.DoubleSide;
 banner.position.set(-16, -.5, 0);
 banner.rotation.y = Math.PI/2;
@@ -2209,8 +2086,8 @@ function drawMinimap(t){
   mmCtx.strokeStyle = nightMix > .5 ? '#8A83BC' : '#F6F2E7';
   mmCtx.lineWidth = 5.4 * k;
   mmCtx.beginPath(); mmCtx.arc(c, c, 37*k, 0, Math.PI*2); mmCtx.stroke();
-  for(let i=0;i<6;i++){
-    const a = i*Math.PI/3 + Math.PI/6;
+  for(let i=0;i<HALL_COUNT;i++){
+    const a = hallAngle(i);
     mmCtx.beginPath();
     mmCtx.moveTo(c + Math.cos(a)*13*k, c + Math.sin(a)*13*k);
     mmCtx.lineTo(c + Math.cos(a)*42*k, c + Math.sin(a)*42*k);

@@ -1,9 +1,10 @@
-# Wonder Museum of Science — Interactive 3D Map
+# Discovery Gateway — Interactive 3D Map
 
-An interactive, low-poly 3D campus map for a science museum. Visitors drive a little
-explorer avatar around the grounds, walk into six exhibit halls, step inside them to
-inspect artifacts, and toggle day/night and weather — all in a single web page with
-**no build step and no bundler**.
+An interactive, low-poly 3D campus map for the **Discovery Gateway Children's Museum**
+(Salt Lake City). Visitors drive a little explorer avatar around the grounds, walk into
+the museum's nine permanent exhibits, step inside them to inspect the stations, and
+toggle day/night and weather — all in a single web page with **no build step and no
+bundler**.
 
 Built with [Three.js](https://threejs.org/) (r128, loaded from CDN). Everything else —
 the audio, the models, the particles — is generated procedurally in code, so there are
@@ -16,11 +17,11 @@ the audio, the models, the particles — is generated procedurally in code, so t
 - **Character controller** — WASD / arrow keys, run, hop (with squash-and-stretch), and a virtual joystick on touch
 - **Point-and-go** — double-click / double-tap the ground, or tap the minimap, to auto-run there
 - **Click a building** to run to it and open its info card
-- **Six exhibit halls** with unique procedural models, ambient animations, and written content
-- **Interior rooms** — walk through a doorway to step inside a hall and inspect 3 artifacts each
+- **Nine exhibit dioramas** — one per Discovery Gateway permanent exhibit (Kids Eye View, I Dig Dinos, Stillson River Railroad, The Bee Garden, Sensory Room & Story Factory, Saving Lives, Utah Jazz Court, Art Lab, STEAM Lab), from the low-poly tile set in `exhibits.js`
+- **Interior rooms** — walk through a doorway to step inside an exhibit and inspect its 3 signature stations
 - **Exhibit detail pages** — gallery, hours, event schedule, highlights
 - **Exhibit drawer** (☰) — accessible list of all halls with "Go" buttons
-- **Explorer passport** (🎟️) — a stamp book that inks a dated stamp for every hall you enter, tracks the artifacts you inspect, awards a "Junior Scientist" seal for completing all six, and persists across visits (`localStorage`)
+- **Explorer passport** (🎟️) — a stamp book that inks a dated stamp for every hall you enter, tracks the artifacts you inspect, awards a "Junior Explorer" seal for completing all nine, and persists across visits (`localStorage`)
 - **Living minimap**, breadcrumb footprints, and a follow camera with zoom (scroll / pinch)
 - **Sun-arc time slider** — drag the sun along a 24-hour arc for continuous time of day; dawn/dusk golden hour, stars, a moon that rides the opposite arc, and lights that switch on at night (N still toggles day/night)
 - **Weather** — clear / rain / snow, with ground splashes and lingering snow prints
@@ -28,16 +29,17 @@ the audio, the models, the particles — is generated procedurally in code, so t
 - **Avatar customizer** (🎨), confetti on completing the museum, promo blimp
 - **Synthesized sound** (Web Audio) and **haptics** (`navigator.vibrate`) on mobile
 - **Cinematic intro flyover** and an **idle attract mode** for kiosk use
-- **Deep links** — `#dino` (or any hall id) opens that hall's detail page and runs you there; the URL hash stays shareable as you browse
+- **Deep links** — `#i-dig-dinos` (or any exhibit id) opens that hall's detail page and runs you there; the URL hash stays shareable as you browse
 - **`prefers-reduced-motion` support** — skips the flyover, attract mode, confetti, and UI animations
 
 ## Project structure
 
 ```
 .
-├── index.html          # markup + HUD, loads Three.js (CDN), styles.css, main.js
+├── index.html          # markup + HUD, loads Three.js (CDN), styles.css, exhibits.js, main.js
 ├── styles.css          # all UI styling
-├── main.js             # the entire 3D app + game logic
+├── exhibits.js         # the nine Discovery Gateway diorama tile factories (window.DG)
+├── main.js             # the 3D campus, game logic, and UI
 ├── package.json        # dev-server convenience scripts only (no runtime deps)
 ├── .github/workflows/
 │   └── deploy.yml       # auto-deploy to GitHub Pages on push to main
@@ -82,37 +84,42 @@ or any static host. No build command; the output directory is the repo root.
 ## Customizing the content
 
 Almost everything a non-developer would want to change lives in one array near the top of
-`main.js`: **`EXHIBIT_DATA`**. Each entry controls one hall:
+`main.js`: **`EXHIBIT_DATA`**. Each entry controls one exhibit:
 
 ```js
 {
-  id:'space',                 // unique id (used in URLs/state)
-  name:'Space Dome',          // shown on the sign, cards, drawer
-  glyph:'🚀',                 // emoji used across the UI
-  color:'#8C6BF2',            // theme color for that hall
-  build:buildSpace,           // the function that builds its 3D model
+  id:'the-bee-garden',        // unique id (used in URLs/state, matches exhibits.js)
+  name:'The Bee Garden',      // shown on the sign, cards, drawer
+  glyph:'🐝',                 // emoji used across the UI
+  color:'#FFC145',            // theme color for that exhibit
+  build: g => adoptTile(g, 'the-bee-garden'),   // places the diorama from exhibits.js
   desc:'...',                 // short blurb in the quick card
   fact:'...',                 // the "Did you know?" line
-  hours:'Open 9:30 – 17:00',  // shown on the detail page + drawer
-  events:[ {time:'11:00', name:'Live star show'} ],   // "Today at this hall"
-  highlights:[                // become the 3 artifacts inside the interior room
-    { emoji:'🔭', name:'Meteorite Chunk', blurb:'...' },
+  hours:'Open 10:00 – 18:00', // shown on the detail page + drawer
+  events:[ {time:'11:30', name:'Find the queen: live hive watch'} ],   // "Today here"
+  highlights:[                // become the 3 stations inside the interior room
+    { emoji:'🍯', name:'Honey Climber', blurb:'...' },
   ],
 }
 ```
 
+The 3D buildings themselves live in `exhibits.js` — nine self-contained 12×12
+diorama tiles (one factory per exhibit) exposed as `window.DG`. `main.js` adopts a
+tile with `adoptTile(group, id)`, which strips the tile's point light and registers
+its emissive window materials with the sun-arc so they glow after dark.
+
 Other quick edits:
 
-- **Blimp banner text** — search `SUMMER OF SPACE` in `main.js`.
+- **Blimp banner text** — search `DISCOVERY GATEWAY ✦` in `main.js`.
 - **Museum name** — in `index.html` (the `.brand` block and `<title>`).
 - **Palette** — the `C = { ... }` color table at the top of `main.js`, plus the CSS
-  variables in `styles.css` (`:root`).
+  variables in `styles.css` (`:root`); the tile palettes are `THEMES` in `exhibits.js`.
 
 ## Roadmap ideas
 
 Photo mode, search bar, EN/ES language toggle, and swapping
-the procedural buildings for GLTF models (the `build*` functions are the drop-in
-points).
+the procedural buildings for GLTF models (the tile factories in `exhibits.js` are
+the drop-in points).
 
 ## Notes & credits
 

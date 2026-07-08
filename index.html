@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Wonder Museum of Science — Explore the Map</title>
-<meta name="description" content="An interactive 3D low-poly campus map for the Wonder Museum of Science. Walk an avatar through the grounds and explore six exhibit halls.">
+<title>Discovery Gateway — Explore the Map</title>
+<meta name="description" content="An interactive 3D low-poly campus map for the Discovery Gateway Children's Museum. Walk an avatar through the grounds and explore nine hands-on exhibits.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -19,10 +19,10 @@
   <div class="left-col">
     <button class="menu-btn" id="menuBtn" title="All exhibits"><div><span></span><span></span><span></span></div></button>
     <div class="brand">
-      <div class="logo">⚛️</div>
+      <div class="logo">🧩</div>
       <div>
-        <h1>Wonder Museum of Science</h1>
-        <p>Interactive campus map</p>
+        <h1>Discovery Gateway</h1>
+        <p>Children's Museum — interactive map</p>
       </div>
     </div>
   </div>
@@ -116,7 +116,7 @@
   <div class="passport">
     <div class="p-head">
       <div>
-        <div class="kicker">Wonder Museum of Science</div>
+        <div class="kicker">Discovery Gateway Children's Museum</div>
         <h2>Explorer Passport</h2>
       </div>
       <button class="icon-x" id="passClose">✕</button>
@@ -128,7 +128,7 @@
     <div class="p-grid" id="passGrid"></div>
     <div class="p-seal" id="passSeal">
       <div class="seal-badge">🏅</div>
-      <div><b>Junior Scientist</b><span>All six halls explored!</span></div>
+      <div><b>Junior Explorer</b><span>All nine exhibits explored!</span></div>
     </div>
     <div class="p-foot">
       <span id="passHint">Step into a hall to earn its stamp.</span>
@@ -171,10 +171,10 @@
 <!-- Intro -->
 <div class="intro" id="intro">
   <div class="intro-card">
-    <div class="orb">⚛️</div>
-    <div class="kicker">Welcome to the</div>
-    <h1>Wonder Museum <span>of Science</span></h1>
-    <p>Walk our little explorer through the campus, step onto a glowing pad, and open any of the six exhibit halls. Every corner has something to discover.</p>
+    <div class="orb">🧩</div>
+    <div class="kicker">Welcome to</div>
+    <h1>Discovery <span>Gateway</span></h1>
+    <p>Walk our little explorer through the campus, step onto a glowing pad, and open any of the nine hands-on exhibits. Every corner has something to discover.</p>
     <button class="btn start" id="startBtn">Start exploring</button>
     <div class="hint" id="introHint">WASD / arrow keys to move · drag to look around</div>
   </div>
@@ -188,6 +188,7 @@
 <div class="toast" id="toast">Exhibit discovered!</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="./exhibits.js"></script>
 <script src="./main.js"></script>
 </body>
 </html>
