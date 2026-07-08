@@ -699,19 +699,22 @@ EXHIBIT_DATA.forEach((data, i)=>{
   g.position.set(Math.cos(a)*R, 0, Math.sin(a)*R);
   g.rotation.y = -a - Math.PI/2;         // face the center
   data.build(g);
-  // physical monument sign planted beside the walkway, toed-in toward the approach
+  // physical monument sign at the front corner of the plinth, angled toward the approach;
+  // placed radially (8.7 > plinth 6.65 + panel reach) so no part of it can clip the building
   const side = i % 2 ? -1 : 1;
+  const sa = .84 * side, sr = 8.7;
+  const sx = Math.sin(sa) * sr, sz = Math.cos(sa) * sr;
   const sign = makeHallSign(data);
-  sign.position.set(side*5.6, 0, 4.6);
-  sign.rotation.y = -side*.3;
+  sign.position.set(sx, 0, sz);
+  sign.rotation.y = sa;
   g.add(sign);
   data.sign = sign;
-  const signWorld = new THREE.Vector3(side*5.6, 0, 4.6).applyEuler(g.rotation).add(g.position);
+  const signWorld = new THREE.Vector3(sx, 0, sz).applyEuler(g.rotation).add(g.position);
   addCollider(signWorld.x, signWorld.z, .9);
-  // glowing interaction pad on the plaza-facing side
-  glowPad(g, 6.4, new THREE.Color(data.color).getHex());
+  // glowing interaction pad — a doorstep plate on the loop road, clear of the plinth (6.65)
+  glowPad(g, 9.25, new THREE.Color(data.color).getHex());
   scene.add(g);
-  const padWorld = new THREE.Vector3(0, 0, 6.4).applyEuler(g.rotation).add(g.position);
+  const padWorld = new THREE.Vector3(0, 0, 9.25).applyEuler(g.rotation).add(g.position);
   data.pad = { x:padWorld.x, z:padWorld.z, r:3.1 };
   data.group = g;
   addCollider(g.position.x, g.position.z, 6.2);
@@ -739,9 +742,9 @@ let doorCd = 0;             // cooldown so exiting doesn't instantly re-enter
 const artifactMeshes = [];
 
 exhibits.forEach((e, i)=>{
-  // door trigger sits between the info pad and the wall (just outside the collider ring),
-  // pulled in so strolling the loop road doesn't trip it
-  e.door = new THREE.Vector3(0, 0, 5.2).applyEuler(e.group.rotation).add(e.group.position);
+  // door trigger between the pad (9.25) and the wall, just past the building collider's
+  // stop line (7.1) so it only fires when you press into the doorway
+  e.door = new THREE.Vector3(0, 0, 7.9).applyEuler(e.group.rotation).add(e.group.position);
 
   const g = new THREE.Group();
   const ox = 600 + i*140;
