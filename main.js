@@ -797,7 +797,7 @@ const SKY = {
            hemiSky:new THREE.Color(0x4A57A0), hemiGround:new THREE.Color(0x2E2750), hemiI:.48,
            sunC:new THREE.Color(0xA7B6FF), sunI:.22, ground:new THREE.Color(0x8B84C4) },
 };
-let hourCur = 10.5, hourTarget = 10.5;   // 24h clock; sun is up 6:00–18:00
+let hourCur = 0, hourTarget = 0;   // 24h clock; sun is up 6:00–18:00 — starts at night (N or ☀️ for day)
 let nightMix = 0;                        // derived each frame; 1 = full night
 
 function mix3(out, a, b, c, wa, wb, wc){
