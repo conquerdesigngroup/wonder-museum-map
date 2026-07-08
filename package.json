@@ -1,0 +1,23 @@
+{
+  "name": "wonder-museum-map",
+  "version": "1.0.0",
+  "description": "Interactive 3D low-poly campus map for a science museum, built with Three.js. No build step.",
+  "type": "module",
+  "scripts": {
+    "start": "npx --yes http-server . -p 8080 -c-1 -o",
+    "dev": "npx --yes http-server . -p 8080 -c-1 -o",
+    "serve": "npx --yes http-server . -p 8080 -c-1"
+  },
+  "keywords": [
+    "threejs",
+    "3d",
+    "low-poly",
+    "museum",
+    "interactive-map",
+    "webgl"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Wonder Museum of Science — Explore the Map</title>
+<meta name="description" content="An interactive 3D low-poly campus map for the Wonder Museum of Science. Walk an avatar through the grounds and explore six exhibit halls.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<div id="app"></div>
+
+<!-- HUD -->
+<div class="hud-top">
+  <div class="left-col">
+    <button class="menu-btn" id="menuBtn" title="All exhibits"><div><span></span><span></span><span></span></div></button>
+    <div class="brand">
+      <div class="logo">⚛️</div>
+      <div>
+        <h1>Wonder Museum of Science</h1>
+        <p>Interactive campus map</p>
+      </div>
+    </div>
+  </div>
+  <div class="right-col">
+    <div class="progress">
+      <div class="label">Exhibits explored</div>
+      <div class="chips" id="chips"></div>
+    </div>
+    <button class="sky-toggle" id="skyToggle" title="Toggle day / night (N)">🌙</button>
+    <button class="sky-toggle" id="weatherToggle" title="Cycle weather">🌤️</button>
+    <button class="sky-toggle" id="soundToggle" title="Toggle sound">🔊</button>
+    <button class="sky-toggle" id="custBtn" title="Customize your explorer">🎨</button>
+  </div>
+</div>
+
+<!-- Avatar customizer -->
+<div class="customizer" id="customizer">
+  <div class="c-title">Your explorer</div>
+  <div class="c-label">Suit</div>
+  <div class="swatches" id="suitSw"></div>
+  <div class="c-label">Backpack</div>
+  <div class="swatches" id="packSw"></div>
+  <div class="c-label">Helmet</div>
+  <button class="helm-btn" id="helmBtn">Helmet: on</button>
+</div>
+
+<!-- Exhibit drawer -->
+<div class="scrim" id="scrim"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">Exhibit halls <button class="icon-x" id="drawerClose">✕</button></div>
+  <div class="drawer-list" id="drawerList"></div>
+  <div class="drawer-foot">Tap Go and your explorer will run there and open the hall.</div>
+</div>
+
+<!-- Exhibit detail panel -->
+<div class="detail" id="detail">
+  <div class="d-hero" id="dHero">
+    <button class="icon-x" id="dClose">✕</button>
+    <div class="big-glyph" id="dGlyph">🚀</div>
+    <div class="kicker" id="dKicker">Exhibit hall · Zone 01</div>
+    <h2 id="dTitle">Space Dome</h2>
+    <div class="hours" id="dHours">Open 9:30 – 17:00</div>
+  </div>
+  <div class="d-scroll">
+    <div class="sec-label">Gallery</div>
+    <div class="gallery" id="dGallery"></div>
+    <div class="sec-label">Today at this hall</div>
+    <div id="dEvents"></div>
+    <div class="sec-label">Don't miss</div>
+    <div id="dHighlights"></div>
+  </div>
+  <div class="d-foot">
+    <button class="btn ghost" id="dPeek">Peek inside</button>
+    <button class="btn primary" id="dGo">Run there</button>
+  </div>
+</div>
+
+<div class="fade" id="fade"></div>
+
+<canvas class="minimap" id="minimap" width="316" height="316" title="Tap the map to run there"></canvas>
+
+<div class="controls-card" id="controlsCard">
+  <div class="row"><b>W A S D</b> or <b>← ↑ ↓ →</b> walk &nbsp; <b>2× click</b> run there</div>
+  <div class="row"><b>Space</b> hop &nbsp; <b>Shift</b> run &nbsp; <b>E</b> interact</div>
+  <div class="row"><b>Scroll</b> zoom &nbsp; <b>Drag</b> rotate &nbsp; <b>N</b> day/night &nbsp; <b>R</b> respawn</div>
+</div>
+
+<div class="prompt" id="prompt"><b>E</b><span id="promptText">Enter exhibit</span></div>
+
+<!-- Exhibit panel -->
+<div class="modal-wrap">
+  <div class="modal" id="modal">
+    <div class="head">
+      <div class="glyph" id="mGlyph">🚀</div>
+      <div>
+        <div class="kicker" id="mKicker">Zone 01</div>
+        <h2 id="mTitle">Space Dome</h2>
+      </div>
+    </div>
+    <div class="body" id="mBody"></div>
+    <div class="fact" id="mFact"></div>
+    <div class="foot">
+      <button class="btn ghost" id="mClose">Keep exploring</button>
+      <button class="btn primary" id="mAction">View exhibit details</button>
+    </div>
+  </div>
+</div>
+
+<!-- Intro -->
+<div class="intro" id="intro">
+  <div class="intro-card">
+    <div class="orb">⚛️</div>
+    <div class="kicker">Welcome to the</div>
+    <h1>Wonder Museum <span>of Science</span></h1>
+    <p>Walk our little explorer through the campus, step onto a glowing pad, and open any of the six exhibit halls. Every corner has something to discover.</p>
+    <button class="btn start" id="startBtn">Start exploring</button>
+    <div class="hint" id="introHint">WASD / arrow keys to move · drag to look around</div>
+  </div>
+</div>
+
+<!-- Touch -->
+<div class="joystick" id="joystick"><div class="stick" id="stick"></div></div>
+<button class="touch-btn jump" id="touchJump">Hop</button>
+<button class="touch-btn" id="touchInteract">Enter</button>
+
+<div class="toast" id="toast">Exhibit discovered!</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="./main.js"></script>
+</body>
+</html>
