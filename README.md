@@ -27,6 +27,7 @@ the audio, the models, the particles — is generated procedurally in code, so t
 - **Weather** — clear / rain / snow, with ground splashes and lingering snow prints
 - **Reactive NPCs** — ducks that scatter, a robot greeter that tracks you
 - **Avatar customizer** (🎨), confetti on completing the museum, promo blimp
+- **Jetpack mode** (🚀 or J) — trade walking for hovering: faster cruise, Space for an altitude boost, flickering thruster flames, downdraft dust, and a lean-into-it flight tilt
 - **Synthesized sound** (Web Audio) and **haptics** (`navigator.vibrate`) on mobile
 - **Cinematic intro flyover** and an **idle attract mode** for kiosk use
 - **Deep links** — `#i-dig-dinos` (or any exhibit id) opens that hall's detail page and runs you there; the URL hash stays shareable as you browse

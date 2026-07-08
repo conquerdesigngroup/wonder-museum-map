@@ -979,6 +979,18 @@ pHelmet.position.y = 2.2; player.add(pHelmet);
 const smile = new THREE.Mesh(new THREE.TorusGeometry(.14,.035,5,10,Math.PI), mat(C.ink));
 smile.position.set(0,2.06,.55); smile.rotation.set(0,0,Math.PI); player.add(smile);
 const pPack = box(.7,.9,.4,C.teal); pPack.position.set(0,1.25,-.55); player.add(pPack);
+/* jetpack thruster flames — hidden until jetpack mode is on */
+const jetFlames = [];
+[-.18, .18].forEach(x=>{
+  const f = new THREE.Mesh(new THREE.ConeGeometry(.13, .5, 6),
+    new THREE.MeshStandardMaterial({ color:0xFFC145, emissive:0xFFB347, emissiveIntensity:1.4, flatShading:true, roughness:.5 }));
+  f.rotation.x = Math.PI;                  // apex points down
+  f.position.set(x, .62, -.55);            // under the backpack
+  f.visible = false;
+  f.castShadow = false;
+  player.add(f);
+  jetFlames.push(f);
+});
 const pAnt = cyl(.03,.03,.5,4,C.ink); pAnt.position.set(0,2.9,-.2); player.add(pAnt);
 const pDot = sph(.09, C.gold, 5, { emissive:C.gold, emissiveIntensity:1 }); pDot.position.set(0,3.18,-.2); player.add(pDot);
 const feet = [];
@@ -990,6 +1002,7 @@ const shadowBlob = new THREE.Mesh(new THREE.CircleGeometry(.85, 16),
   new THREE.MeshBasicMaterial({ color:0x3B3563, transparent:true, opacity:.18 }));
 shadowBlob.rotation.x = -Math.PI/2; shadowBlob.position.y = .05;
 player.add(shadowBlob);
+player.rotation.order = 'YXZ';    // heading first, then jetpack pitch around the local x-axis
 player.position.set(0, 0, 20);
 scene.add(player);
 
@@ -1230,6 +1243,7 @@ addEventListener('keydown', e=>{
   if(e.code==='KeyE' || e.code==='Enter') tryInteract();
   if(e.code==='Space') tryJump();
   if(e.code==='KeyN') toggleNight();
+  if(e.code==='KeyJ') toggleJetpack();
   if(e.code==='KeyR') respawn();
   if(e.code==='Escape'){
     if(passOpen) closePassport();
@@ -1469,8 +1483,24 @@ const GRAV = 42, JUMP_V = 15;
 
 function tryJump(){
   if(modalOpen || detailOpen || !started || cine >= 0) return;
+  if(jetpack){ jetBoost = 2.4; sfx.jump(); buzz(8); return; }   // Space = altitude boost
   if(airY <= .001 && vy <= 0){ vy = JUMP_V; sfx.jump(); }
 }
+
+/* ---------- jetpack mode ---------- */
+let jetpack = false;
+let jetHover = 0;        // smoothed hover height
+let jetBoost = 0;        // extra lift from Space, decays
+let jetPuffAcc = 0, jetSfxAcc = 0;
+function toggleJetpack(){
+  if(!started) return;
+  jetpack = !jetpack;
+  jetFlames.forEach(f => f.visible = jetpack);
+  document.getElementById('jetBtn').classList.toggle('on', jetpack);
+  if(jetpack){ sfx.jump(); buzz([15, 25, 15]); showToast('🚀 Jetpack on — hover and zoom around! (J to land)'); }
+  else { sfx.land(); buzz(10); showToast('🥾 Jetpack off — boots on the ground'); }
+}
+document.getElementById('jetBtn').addEventListener('click', ()=>{ toggleJetpack(); });
 
 function respawn(){
   inside = null;
@@ -1488,7 +1518,7 @@ function updatePlayer(dt, t){
   airY = Math.max(0, airY + vy * dt);
   if(airY === 0 && vy < 0) vy = 0;
 
-  if(modalOpen || detailOpen || !started || cine >= 0){ vel.multiplyScalar(.85); player.position.y = airY; return; }
+  if(modalOpen || detailOpen || !started || cine >= 0){ vel.multiplyScalar(.85); player.position.y = airY + jetHover; return; }
 
   let ix = 0, iz = 0;
   if(keys['KeyW']||keys['ArrowUp'])    iz -= 1;
@@ -1520,7 +1550,7 @@ function updatePlayer(dt, t){
   }
 
   const running = keys['ShiftLeft']||keys['ShiftRight'] || inputLen > .92 || !!auto;
-  const speed = running ? 14 : 9;
+  const speed = jetpack ? (running ? 21 : 15) : (running ? 14 : 9);
 
   if(auto){
     const sp = Math.min(speed, auto.dist * 3 + 2.5);   // ease in on arrival
@@ -1593,18 +1623,38 @@ function updatePlayer(dt, t){
   // walk animation + hop
   const spd = Math.hypot(vel.x, vel.z);
   walkT += dt * spd * 1.35;
-  const grounded = airY <= .001;
+  const grounded = airY <= .001 && !jetpack;
   if(grounded && wasAirborne){ sfx.land(); buzz(12); spawnPuff(player.position, 1.15); }
   wasAirborne = !grounded;
   if(grounded && spd > 2.5) dropFootprint(spd * dt);
   const bob = grounded ? Math.max(0, Math.sin(walkT*2)) * Math.min(1, spd/8) * .22 : 0;
-  player.position.y = bob + airY;
+
+  // jetpack hover: ease up to cruising height with a gentle idle bob
+  jetBoost = Math.max(0, jetBoost - dt*2.4);
+  const hoverTarget = jetpack ? 2.1 + Math.sin(t*2.6)*.15 + jetBoost : 0;
+  jetHover += (hoverTarget - jetHover) * Math.min(1, dt * (jetpack ? 3.5 : 5));
+  if(jetHover < .005) jetHover = 0;
+  player.position.y = bob + airY + jetHover;
 
   // squash & stretch on the hop
   let targetSY = 1;
-  if(!grounded) targetSY = 1 + Math.max(-.14, Math.min(.16, vy * .012));
+  if(!grounded && !jetpack) targetSY = 1 + Math.max(-.14, Math.min(.16, vy * .012));
   player.scale.y += (targetSY - player.scale.y) * Math.min(1, dt*14);
   player.scale.x = player.scale.z = 1 + (1 - player.scale.y) * .6;
+
+  // jetpack lean + thruster effects
+  const tilt = jetpack ? -Math.min(.32, spd * .022) : 0;
+  player.rotation.x += (tilt - player.rotation.x) * Math.min(1, dt*8);
+  if(jetpack){
+    jetFlames.forEach(f=>{
+      f.scale.y = .75 + Math.random()*.6;
+      f.scale.x = f.scale.z = .85 + Math.random()*.3;
+    });
+    jetPuffAcc += dt;
+    if(jetPuffAcc > .13 && spd > 1.5){ jetPuffAcc = 0; spawnPuff(player.position, .5); }
+    jetSfxAcc += dt;
+    if(jetSfxAcc > .16){ jetSfxAcc = 0; thud(.05, .05, 750 + spd*35); }
+  }
 
   pBody.rotation.z = Math.sin(walkT*2) * .06 * Math.min(1, spd/8);
   if(grounded){
@@ -1614,8 +1664,8 @@ function updatePlayer(dt, t){
     feet[0].position.y = feet[1].position.y = .34;   // tuck feet mid-air
   }
   shadowBlob.position.y = .05 - player.position.y;   // shadow stays on the ground
-  shadowBlob.material.opacity = .18 * Math.max(.35, 1 - airY/4);
-  shadowBlob.scale.setScalar(Math.max(.55, 1 - airY/7));
+  shadowBlob.material.opacity = .18 * Math.max(.35, 1 - (airY + jetHover)/4);
+  shadowBlob.scale.setScalar(Math.max(.55, 1 - (airY + jetHover)/7));
   pDot.material.emissiveIntensity = .7 + Math.sin(t*4)*.3;
 }
 
