@@ -9,9 +9,9 @@
 
 /* ---------- palette ---------- */
 const C = {
-  ground:  0xBDB6E4,  // lavender base (ref image 2)
-  grass:   0x9ADBA5,
-  grassB:  0x7FCF92,
+  ground:  0xACA3DC,  // lavender base (ref image 2), deepened so paths/buildings pop
+  grass:   0x84CE93,
+  grassB:  0x6DC084,
   path:    0xF6F2E7,
   pathEdge:0xE8E1CF,
   cream:   0xFFF6E6,
@@ -44,12 +44,12 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;   // rolls off highlights → daytime keeps contrast
-renderer.toneMappingExposure = 1.12;
+renderer.toneMappingExposure = 1.0;
 app.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xCDE7F5);
-scene.fog = new THREE.Fog(0xCDE7F5, 90, 190);
+scene.fog = new THREE.Fog(0xCDE7F5, 140, 300);   // starts past the campus rim so the map keeps its color
 
 const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, .1, 400);
 
@@ -135,6 +135,69 @@ function makeSign(text, bg='#3B3563', fg='#FFFFFF', w=6, h=1.7){
   return mesh;
 }
 if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=> signRedraws.forEach(f => f()));
+
+/* full-bleed panel texture for physical signs (colored face, inset border) */
+function makeSignTexture(text, bg, fg, w, h){
+  const cv = document.createElement('canvas');
+  cv.width = 512; cv.height = Math.round(512*h/w);
+  const ctx = cv.getContext('2d');
+  const tex = new THREE.CanvasTexture(cv);
+  tex.anisotropy = 4;
+  function draw(){
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, cv.width, cv.height);
+    // top-lit gradient so the panel reads as a lit surface, not a UI pill
+    const gr = ctx.createLinearGradient(0, 0, 0, cv.height);
+    gr.addColorStop(0, 'rgba(255,255,255,.16)');
+    gr.addColorStop(1, 'rgba(0,0,0,.12)');
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 7;
+    ctx.strokeRect(15, 15, cv.width - 30, cv.height - 30);
+    ctx.fillStyle = fg;
+    let size = 84;
+    const maxW = cv.width - 92;
+    ctx.font = `600 ${size}px Fredoka, sans-serif`;
+    const tw = ctx.measureText(text).width;
+    if(tw > maxW){
+      size = Math.floor(size * maxW / tw);
+      ctx.font = `600 ${size}px Fredoka, sans-serif`;
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, cv.width/2, cv.height/2 + size*.06);
+    tex.needsUpdate = true;
+  }
+  draw();
+  signRedraws.push(draw);
+  return tex;
+}
+
+/* physical monument sign: colored panel in a wood frame on two posts */
+function makeHallSign(data){
+  const g = new THREE.Group();
+  const W = 5.4, H = 1.55, D = .24;
+  [-1, 1].forEach(s=>{
+    const post = cyl(.13, .17, 2.5, 8, C.trunk);
+    post.position.set(s*(W/2 - .55), 1.25, 0);
+    g.add(post);
+  });
+  const body = box(W, H, D, C.trunk);
+  body.position.y = 2.35;
+  g.add(body);
+  const cap = box(W + .28, .18, D + .2, C.trunk);
+  cap.position.y = 2.35 + H/2 + .09;
+  g.add(cap);
+  const tex = makeSignTexture(data.name, data.color, '#FFFFFF', W, H);
+  [1, -1].forEach(s=>{
+    const face = new THREE.Mesh(
+      new THREE.PlaneGeometry(W - .16, H - .16),
+      new THREE.MeshStandardMaterial({ map:tex, emissive:0xFFFFFF, emissiveMap:tex, emissiveIntensity:.25, roughness:.8, metalness:0 })
+    );
+    face.position.set(0, 2.35, s*(D/2 + .012));
+    if(s < 0) face.rotation.y = Math.PI;
+    g.add(face);
+    glowMats.push({ m:face.material, day:.25, night:.95 });   // reads like lit signage after dark
+  });
+  return g;
+}
 
 /* ---------- sound engine (all synthesized, no audio files) ---------- */
 let AC = null, master = null, noiseBuf = null, rainGain = null, muted = false;
@@ -634,11 +697,15 @@ EXHIBIT_DATA.forEach((data, i)=>{
   g.position.set(Math.cos(a)*R, 0, Math.sin(a)*R);
   g.rotation.y = -a - Math.PI/2;         // face the center
   data.build(g);
-  // sign
-  const sign = makeSign(data.name, data.color, '#FFFFFF');
-  sign.position.set(0, 7.6, 2.2);
+  // physical monument sign planted beside the walkway, toed-in toward the approach
+  const side = i % 2 ? -1 : 1;
+  const sign = makeHallSign(data);
+  sign.position.set(side*5.6, 0, 5.4);
+  sign.rotation.y = -side*.3;
   g.add(sign);
   data.sign = sign;
+  const signWorld = new THREE.Vector3(side*5.6, 0, 5.4).applyEuler(g.rotation).add(g.position);
+  addCollider(signWorld.x, signWorld.z, .9);
   // glowing interaction pad on the plaza-facing side
   glowPad(g, 6.4, new THREE.Color(data.color).getHex());
   scene.add(g);
@@ -649,15 +716,6 @@ EXHIBIT_DATA.forEach((data, i)=>{
   exhibits.push(data);
 });
 
-/* signs always face camera (billboard, yaw only) */
-animated.push({ fn:()=>{
-  exhibits.forEach(e=>{
-    const wp = new THREE.Vector3();
-    e.sign.getWorldPosition(wp);
-    const yaw = Math.atan2(camera.position.x - wp.x, camera.position.z - wp.z);
-    e.sign.rotation.y = yaw - e.group.rotation.y;
-  });
-}});
 
 /* ---------- interior rooms (one per exhibit) ---------- */
 function makeEmojiPlane(emoji, size=2.6){
@@ -847,13 +905,13 @@ animated.push({ fn:(t,dt)=>{
 // day tuned darker/more saturated than the original so the campus reads with contrast
 const SKY = {
   day:   { sky:new THREE.Color(0x9CCFEF), fog:new THREE.Color(0xA9D6F0),
-           hemiSky:new THREE.Color(0xDDF0FF), hemiGround:new THREE.Color(0x8E7FC9), hemiI:.48,
-           sunC:new THREE.Color(0xFFEECC), sunI:1.5, ground:new THREE.Color(C.ground) },
+           hemiSky:new THREE.Color(0xDDF0FF), hemiGround:new THREE.Color(0x6F62B0), hemiI:.28,
+           sunC:new THREE.Color(0xFFEECC), sunI:1.05, ground:new THREE.Color(C.ground) },
   dusk:  { sky:new THREE.Color(0xF2A46B), fog:new THREE.Color(0xEFA075),
-           hemiSky:new THREE.Color(0xFFD9A8), hemiGround:new THREE.Color(0x7E639E), hemiI:.5,
-           sunC:new THREE.Color(0xFF8A4A), sunI:.85, ground:new THREE.Color(0xC7AE9C) },
+           hemiSky:new THREE.Color(0xFFD9A8), hemiGround:new THREE.Color(0x6D5490), hemiI:.4,
+           sunC:new THREE.Color(0xFF8A4A), sunI:1.05, ground:new THREE.Color(0xC7AE9C) },
   night: { sky:new THREE.Color(0x232A52), fog:new THREE.Color(0x232A52),
-           hemiSky:new THREE.Color(0x4A57A0), hemiGround:new THREE.Color(0x2E2750), hemiI:.42,
+           hemiSky:new THREE.Color(0x4A57A0), hemiGround:new THREE.Color(0x2E2750), hemiI:.48,
            sunC:new THREE.Color(0xA7B6FF), sunI:.22, ground:new THREE.Color(0x8B84C4) },
 };
 let hourCur = 10.5, hourTarget = 10.5;   // 24h clock; sun is up 6:00–18:00
