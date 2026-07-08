@@ -285,11 +285,13 @@ function grassPatch(x, z, r, color){
   m.receiveShadow = true;
   scene.add(m);
 }
-[
-  [ 34,-34, 15, C.grass], [-38,-30, 13, C.grassB], [ 40, 28, 14, C.grass],
-  [-36, 34, 15, C.grassB], [  0,-48, 12, C.grass], [ -2, 50, 11, C.grassB],
-  [ 55,  0, 10, C.grass], [-56,  2, 10, C.grass],
-].forEach(p => grassPatch(...p));
+// one lawn under each hall — centered on the hall's angle, just outside the loop road
+for(let i=0;i<6;i++){
+  const a = i*Math.PI/3 + Math.PI/6;
+  grassPatch(Math.cos(a)*51, Math.sin(a)*51, 11.5, i%2 ? C.grassB : C.grass);
+}
+// two filler meadows on the east/west axis, between halls
+[[ 55, 0, 10, C.grass], [-56, 2, 10, C.grass]].forEach(p => grassPatch(...p));
 
 /* ---------- paths (loop + spokes) ---------- */
 const pathGroup = new THREE.Group();
@@ -309,16 +311,16 @@ const plazaRim = new THREE.Mesh(new THREE.TorusGeometry(13, .28, 6, 40), mat(C.p
 plazaRim.rotation.x = Math.PI/2; plazaRim.position.y = .36;
 pathGroup.add(plazaRim);
 
-// six spokes to exhibits
+// six spokes to exhibits — end at the loop road
 for(let i=0;i<6;i++){
   const a = i * Math.PI/3 + Math.PI/6;
-  const len = 26;
+  const len = 24;
   pathSeg(Math.cos(a)*(13+len/2), Math.sin(a)*(13+len/2), len, 5.4, -a + Math.PI/2);
 }
-// outer ring path (segments)
+// loop road connecting the hall entrances (inside the hall ring, clear of the lawns)
 for(let i=0;i<24;i++){
   const a = i/24 * Math.PI*2;
-  pathSeg(Math.cos(a)*46, Math.sin(a)*46, 12.6, 5, -a + Math.PI/2);
+  pathSeg(Math.cos(a)*37, Math.sin(a)*37, 10.2, 5, -a + Math.PI/2);
 }
 // crosswalk stripes on spokes
 for(let i=0;i<6;i++){
@@ -439,15 +441,15 @@ function exhibitBase(g, w, color){
   plinth.position.y = .35; g.add(plinth);
 }
 function glowPad(g, dist, color){
-  const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, .12, 20),
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, .3, 20),
     mat(color, { emissive:color, emissiveIntensity:.5, roughness:.4 }));
-  pad.position.set(0, .3, dist);
+  pad.position.set(0, .35, dist);       // tall enough to sit proud of the lawn
   g.add(pad);
   glowMats.push({ m:pad.material, day:.5, night:1.4 });
   const ring = new THREE.Mesh(new THREE.TorusGeometry(2.5, .12, 6, 26),
     mat(C.white, { emissive:color, emissiveIntensity:.9 }));
   ring.rotation.x = Math.PI/2;
-  ring.position.set(0, .4, dist);
+  ring.position.set(0, .52, dist);
   g.add(ring);
   glowMats.push({ m:ring.material, day:.9, night:2 });
   animated.push({ fn:(t)=>{ ring.scale.setScalar(1 + Math.sin(t*2.4)*.05); } });
@@ -700,11 +702,11 @@ EXHIBIT_DATA.forEach((data, i)=>{
   // physical monument sign planted beside the walkway, toed-in toward the approach
   const side = i % 2 ? -1 : 1;
   const sign = makeHallSign(data);
-  sign.position.set(side*5.6, 0, 5.4);
+  sign.position.set(side*5.6, 0, 4.6);
   sign.rotation.y = -side*.3;
   g.add(sign);
   data.sign = sign;
-  const signWorld = new THREE.Vector3(side*5.6, 0, 5.4).applyEuler(g.rotation).add(g.position);
+  const signWorld = new THREE.Vector3(side*5.6, 0, 4.6).applyEuler(g.rotation).add(g.position);
   addCollider(signWorld.x, signWorld.z, .9);
   // glowing interaction pad on the plaza-facing side
   glowPad(g, 6.4, new THREE.Color(data.color).getHex());
@@ -737,8 +739,9 @@ let doorCd = 0;             // cooldown so exiting doesn't instantly re-enter
 const artifactMeshes = [];
 
 exhibits.forEach((e, i)=>{
-  // door trigger sits between the info pad and the wall (just outside the collider ring)
-  e.door = new THREE.Vector3(0, 0, 7.6).applyEuler(e.group.rotation).add(e.group.position);
+  // door trigger sits between the info pad and the wall (just outside the collider ring),
+  // pulled in so strolling the loop road doesn't trip it
+  e.door = new THREE.Vector3(0, 0, 5.2).applyEuler(e.group.rotation).add(e.group.position);
 
   const g = new THREE.Group();
   const ox = 600 + i*140;
@@ -2202,12 +2205,12 @@ function drawMinimap(t){
   // ring road + spokes
   mmCtx.strokeStyle = nightMix > .5 ? '#8A83BC' : '#F6F2E7';
   mmCtx.lineWidth = 5.4 * k;
-  mmCtx.beginPath(); mmCtx.arc(c, c, 46*k, 0, Math.PI*2); mmCtx.stroke();
+  mmCtx.beginPath(); mmCtx.arc(c, c, 37*k, 0, Math.PI*2); mmCtx.stroke();
   for(let i=0;i<6;i++){
     const a = i*Math.PI/3 + Math.PI/6;
     mmCtx.beginPath();
     mmCtx.moveTo(c + Math.cos(a)*13*k, c + Math.sin(a)*13*k);
-    mmCtx.lineTo(c + Math.cos(a)*46*k, c + Math.sin(a)*46*k);
+    mmCtx.lineTo(c + Math.cos(a)*42*k, c + Math.sin(a)*42*k);
     mmCtx.stroke();
   }
   // plaza
