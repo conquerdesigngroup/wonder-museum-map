@@ -6,9 +6,9 @@ the museum's nine permanent exhibits, step inside them to inspect the stations, 
 toggle day/night and weather — all in a single web page with **no build step and no
 bundler**.
 
-Built with [Three.js](https://threejs.org/) (r128, loaded from CDN). Everything else —
-the audio, the models, the particles — is generated procedurally in code, so there are
-**zero binary assets** to host.
+Built with [Three.js](https://threejs.org/) (r128, loaded from CDN). The audio, the
+buildings, and the particles are generated procedurally in code; the only shipped
+asset is `rocket.obj`, the cartoon rocket on the launch pad.
 
 ![status](https://img.shields.io/badge/status-prototype-blue)
 
@@ -28,6 +28,7 @@ the audio, the models, the particles — is generated procedurally in code, so t
 - **Reactive NPCs** — ducks that scatter, a robot greeter that tracks you
 - **Avatar customizer** (🎨), confetti on completing the museum, promo blimp
 - **Jetpack mode** (🚀 or J) — trade walking for hovering: faster cruise, Space for an altitude boost, flickering thruster flames, downdraft dust, and a lean-into-it flight tilt
+- **Rocket launch station** — a launch pad behind the park (gantry, fuel tanks, mission control, blinking beacons); step on its pad and press E for lift-off with rumble, smoke, and a shudder — the rocket lands back on the pad 10 seconds later
 - **Bird's-eye view** (🗺️ or B) — an alternate navigation style: a fixed-orientation top-down diorama (think Animal Crossing) where the map never rotates, WASD/joystick pan in screen directions, and the camera glides after you; the choice persists across visits
 - **Synthesized sound** (Web Audio) and **haptics** (`navigator.vibrate`) on mobile
 - **Cinematic intro flyover** and an **idle attract mode** for kiosk use
@@ -41,6 +42,7 @@ the audio, the models, the particles — is generated procedurally in code, so t
 ├── index.html          # markup + HUD, loads Three.js (CDN), styles.css, exhibits.js, main.js
 ├── styles.css          # all UI styling
 ├── exhibits.js         # the nine Discovery Gateway diorama tile factories (window.DG)
+├── rocket.obj          # cartoon rocket model for the launch station (loaded at runtime)
 ├── main.js             # the 3D campus, game logic, and UI
 ├── package.json        # dev-server convenience scripts only (no runtime deps)
 ├── .github/workflows/

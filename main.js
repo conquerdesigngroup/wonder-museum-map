@@ -733,6 +733,144 @@ function exitInterior(){
   });
 }
 
+/* ---------- rocket launch station (back of the park) ---------- */
+const LAUNCH_ANG = Math.PI * 280/180;      // in the gap between Utah Jazz Court and Art Lab
+const launchBase = new THREE.Group();
+launchBase.position.set(Math.cos(LAUNCH_ANG)*66, 0, Math.sin(LAUNCH_ANG)*66);
+launchBase.rotation.y = -LAUNCH_ANG - Math.PI/2;      // face the plaza
+scene.add(launchBase);
+
+// concrete apron + pad plate + warning ring
+const apron = cyl(9, 9.5, .5, 10, 0x8B8FA3); apron.position.y = .25; launchBase.add(apron);
+const padPlate = cyl(3.9, 4.3, .6, 10, 0x565A6E); padPlate.position.set(0, .55, -1.5); launchBase.add(padPlate);
+const warnRing = new THREE.Mesh(new THREE.TorusGeometry(4.5, .16, 6, 24), mat(C.gold, { emissive:C.gold, emissiveIntensity:.35 }));
+warnRing.rotation.x = Math.PI/2; warnRing.position.set(0, .56, -1.5); launchBase.add(warnRing);
+glowMats.push({ m:warnRing.material, day:.35, night:1.2 });
+
+// gantry tower with service arm
+const gantry = new THREE.Group();
+for(let i=0;i<5;i++){ const seg = box(1.5, 1.9, 1.5, i%2 ? 0xC9CFDC : 0xAEB6C8); seg.position.y = 1 + i*1.9; gantry.add(seg); }
+const arm = box(2.6, .4, .5, 0xC9CFDC); arm.position.set(1.9, 8.6, 0); gantry.add(arm);
+const gantryTip = sph(.22, 0xE0574F, 5, { emissive:0xE0574F, emissiveIntensity:1 });
+gantryTip.position.y = 10.2; gantry.add(gantryTip);
+gantry.position.set(-4.6, 0, -2.6); launchBase.add(gantry);
+
+// fuel tanks + mission control hut
+[-1, 1].forEach(s=>{
+  const tank = cyl(.8, .8, 3.4, 9, C.white); tank.position.set(4.6, 1.7, -2.6 + s*1.1); launchBase.add(tank);
+  const cap = sph(.8, 0xE0574F, 7); cap.position.set(4.6, 3.5, -2.6 + s*1.1); cap.scale.y = .55; launchBase.add(cap);
+});
+const hut = box(2.8, 2, 2.2, 0x565A6E); hut.position.set(4.8, 1, 2.8); launchBase.add(hut);
+const hutRoof = box(3.1, .3, 2.5, 0xE0574F); hutRoof.position.set(4.8, 2.15, 2.8); launchBase.add(hutRoof);
+const hutWin = new THREE.Mesh(new THREE.PlaneGeometry(1.6, .8),
+  new THREE.MeshStandardMaterial({ color:0xFFE9C4, emissive:0xFFC98A, emissiveIntensity:.5, roughness:.6 }));
+hutWin.position.set(4.8, 1.15, 3.92); launchBase.add(hutWin);
+glowMats.push({ m:hutWin.material, day:.5, night:1.6 });
+
+// blinking pad beacons
+const beacons = [];
+[[-3.4,-4.6],[3.4,-4.6],[-4.4,1.4],[2.8,4.2]].forEach(([x,z],i)=>{
+  const b = sph(.18, 0xE0574F, 5, { emissive:0xE0574F, emissiveIntensity:1 });
+  b.position.set(x, .65, z); launchBase.add(b);
+  beacons.push({ m:b.material, off:i*1.6 });
+});
+
+// activation pad + sign, matching the exhibit language
+glowPad(launchBase, 7.2, 0xFF7A59);
+const launchSign = makeHallSign({ name:'Rocket Launch', color:'#E0574F' });
+launchSign.position.set(6.6, 0, 5.4); launchSign.rotation.y = .8;
+launchBase.add(launchSign);
+
+// colliders (world space)
+[[0,-1.5,3.0],[-4.6,-2.6,1.5],[4.6,-2.6,1.4],[4.8,2.8,1.9]].forEach(([x,z,r])=>{
+  const w = new THREE.Vector3(x, 0, z).applyEuler(launchBase.rotation).add(launchBase.position);
+  addCollider(w.x, w.z, r);
+});
+const launchTrigger = new THREE.Vector3(0, 0, 7.2).applyEuler(launchBase.rotation).add(launchBase.position);
+const rocketWorldHome = new THREE.Vector3(0, 0, -1.5).applyEuler(launchBase.rotation).add(launchBase.position);
+
+// the rocket itself — the cartoon OBJ, with a procedural fallback if it can't load
+const ROCKET_HOME = new THREE.Vector3(0, .85, -1.5);
+const rocketShip = new THREE.Group();
+rocketShip.position.copy(ROCKET_HOME);
+launchBase.add(rocketShip);
+const rocketFlame = new THREE.Mesh(new THREE.ConeGeometry(1.0, 3.2, 8),
+  new THREE.MeshStandardMaterial({ color:0xFFC145, emissive:0xFFB347, emissiveIntensity:1.6, flatShading:true, roughness:.5 }));
+rocketFlame.rotation.x = Math.PI;
+rocketFlame.position.y = -1.2;
+rocketFlame.visible = false;
+rocketShip.add(rocketFlame);
+
+function buildFallbackRocket(){
+  const body = cyl(1.1, 1.4, 4.6, 10, 0xE8EAF0); body.position.y = 2.3; rocketShip.add(body);
+  const nose = cone(1.15, 2.2, 10, 0xE8542F); nose.position.y = 5.7; rocketShip.add(nose);
+  for(let i=0;i<3;i++){
+    const fin = box(.25, 1.6, 1.3, 0xE8542F);
+    const a = i*Math.PI*2/3;
+    fin.position.set(Math.cos(a)*1.35, .8, Math.sin(a)*1.35);
+    fin.rotation.y = -a;
+    rocketShip.add(fin);
+  }
+  const port = sph(.42, 0x9CCFEF, 8); port.position.set(0, 3.3, 1.05); rocketShip.add(port);
+}
+if(typeof THREE.OBJLoader === 'function'){
+  new THREE.OBJLoader().load('./rocket.obj', obj=>{
+    obj.traverse(o=>{
+      if(o.isMesh){
+        const nm = (o.material && o.material.name) || '';
+        o.material = new THREE.MeshStandardMaterial({
+          color: nm === '1' ? 0x3B3F58 : 0xE8542F, roughness:.75, metalness:0 });
+        o.castShadow = o.receiveShadow = true;
+      }
+    });
+    const bb = new THREE.Box3().setFromObject(obj);
+    const size = bb.getSize(new THREE.Vector3());
+    obj.scale.setScalar(7.6 / size.y);
+    bb.setFromObject(obj);
+    const c = bb.getCenter(new THREE.Vector3());
+    obj.position.set(-c.x, -bb.min.y, -c.z);
+    rocketShip.add(obj);
+  }, undefined, ()=> buildFallbackRocket());
+} else buildFallbackRocket();
+
+// launch state machine
+let rocketState = 'ready';        // ready | flying | gone
+let launchT = 0, smokeAcc = 0;
+function launchRocket(){
+  if(rocketState !== 'ready') return;
+  rocketState = 'flying'; launchT = 0;
+  buzz([60, 80, 60, 80, 220]);
+  for(let i=0;i<10;i++) thud(.3, .5, 260 + i*130, i*.18);   // rolling rumble
+  blip(90, 2.4, 'sawtooth', .1, 750);                        // rising roar
+  showToast('🚀 LIFT-OFF! Back on the pad in 10 seconds…');
+}
+animated.push({ fn:(t, dt)=>{
+  beacons.forEach(b=>{ b.m.emissiveIntensity = .35 + Math.max(0, Math.sin(t*2.2 + b.off)) * 1.3; });
+  if(rocketState === 'ready') return;
+  launchT += dt;
+  if(rocketState === 'flying'){
+    const u = launchT;
+    const h = u < 1.2 ? u*u*.9 : 1.3 + (u-1.2)*(u-1.2)*11 + (u-1.2)*4;  // rumble, then punch it
+    rocketShip.position.y = ROCKET_HOME.y + h;
+    rocketShip.rotation.z = Math.sin(u*22)*.014 * Math.max(0, 1.4-u);   // launch shudder
+    rocketFlame.visible = true;
+    rocketFlame.scale.set(.9 + Math.random()*.4, 1.1 + Math.random()*.9, .9 + Math.random()*.4);
+    smokeAcc += dt;
+    if(h < 42 && smokeAcc > .05){ smokeAcc = 0; spawnPuff(rocketWorldHome, 1.5 + Math.random()); }
+    if(h > 170){ rocketShip.visible = false; rocketFlame.visible = false; rocketState = 'gone'; }
+  }
+  if(launchT >= 10){
+    rocketState = 'ready'; launchT = 0;
+    rocketShip.position.copy(ROCKET_HOME);
+    rocketShip.rotation.z = 0;
+    rocketShip.visible = true;
+    rocketFlame.visible = false;
+    spawnPuff(rocketWorldHome, 1.6);
+    sfx.discover();
+    showToast('🚀 Rocket refueled and back on the pad');
+  }
+}});
+
 /* ---------- promo blimp circling the campus ---------- */
 const blimp = new THREE.Group();
 const hull = sph(3.6, C.coral, 8); hull.scale.set(2.3, 1, 1); blimp.add(hull);
@@ -1812,6 +1950,7 @@ EXHIBIT_DATA.forEach(e=>{
 
 let prevNear = null;
 let nearArtifact = null;
+let nearLaunch = false;
 function updateInteraction(){
   nearExhibit = null; nearArtifact = null;
   if(inside){
@@ -1834,10 +1973,17 @@ function updateInteraction(){
     const d = Math.hypot(player.position.x - e.pad.x, player.position.z - e.pad.z);
     if(d < e.pad.r){ nearExhibit = e; break; }
   }
-  if(nearExhibit && nearExhibit !== prevNear && !modalOpen){ sfx.pad(); buzz(8); }
-  prevNear = nearExhibit;
+  nearLaunch = !nearExhibit && rocketState === 'ready' &&
+    Math.hypot(player.position.x - launchTrigger.x, player.position.z - launchTrigger.z) < 3.4;
+  const anyNear = nearExhibit || nearLaunch;
+  if(anyNear && anyNear !== prevNear && !modalOpen){ sfx.pad(); buzz(8); }
+  prevNear = anyNear;
   if(nearExhibit && !modalOpen){
     promptText.textContent = 'Enter ' + nearExhibit.name;
+    promptEl.classList.add('show');
+    touchBtn.classList.add('pulse');
+  } else if(nearLaunch && !modalOpen){
+    promptText.textContent = 'Launch the rocket';
     promptEl.classList.add('show');
     touchBtn.classList.add('pulse');
   } else {
@@ -1904,7 +2050,8 @@ function openExhibit(e){
 function tryInteract(){
   if(modalOpen || detailOpen) return;
   if(inside && nearArtifact){ openArtifact({ h:nearArtifact.h, e:inside }); return; }
-  if(nearExhibit) openExhibit(nearExhibit);
+  if(nearExhibit){ openExhibit(nearExhibit); return; }
+  if(nearLaunch) launchRocket();
 }
 function closeModal(){
   modal.classList.remove('show');
