@@ -452,16 +452,16 @@ function adoptTile(g, id){
   t.position.y = .42;
   g.add(t);
 }
-function glowPad(g, dist, color){
+function glowPad(g, dist, color, lift=0){
   const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, .3, 20),
     mat(color, { emissive:color, emissiveIntensity:.5, roughness:.4 }));
-  pad.position.set(0, .35, dist);       // tall enough to sit proud of the lawn
+  pad.position.set(0, .35 + lift, dist);    // proud of the lawn (or, lifted, of a raised deck)
   g.add(pad);
   glowMats.push({ m:pad.material, day:.5, night:1.4 });
   const ring = new THREE.Mesh(new THREE.TorusGeometry(2.5, .12, 6, 26),
     mat(C.white, { emissive:color, emissiveIntensity:.9 }));
   ring.rotation.x = Math.PI/2;
-  ring.position.set(0, .52, dist);
+  ring.position.set(0, .52 + lift, dist);
   g.add(ring);
   glowMats.push({ m:ring.material, day:.9, night:2 });
   animated.push({ fn:(t)=>{ ring.scale.setScalar(1 + Math.sin(t*2.4)*.05); } });
@@ -775,8 +775,9 @@ const beacons = [];
   beacons.push({ m:b.material, off:i*1.6 });
 });
 
-// activation pad + sign, matching the exhibit language
-glowPad(launchBase, 7.2, 0xFF7A59);
+// activation pad + sign, matching the exhibit language — lifted .22 above the apron
+// deck (top y=.5) so the two surfaces never z-fight, and pulled in to sit fully on it
+glowPad(launchBase, 6.2, 0xFF7A59, .22);
 const launchSign = makeHallSign({ name:'Rocket Launch', color:'#E0574F' });
 launchSign.position.set(6.6, 0, 5.4); launchSign.rotation.y = .8;
 launchBase.add(launchSign);
@@ -786,7 +787,7 @@ launchBase.add(launchSign);
   const w = new THREE.Vector3(x, 0, z).applyEuler(launchBase.rotation).add(launchBase.position);
   addCollider(w.x, w.z, r);
 });
-const launchTrigger = new THREE.Vector3(0, 0, 7.2).applyEuler(launchBase.rotation).add(launchBase.position);
+const launchTrigger = new THREE.Vector3(0, 0, 6.2).applyEuler(launchBase.rotation).add(launchBase.position);
 const rocketWorldHome = new THREE.Vector3(0, 0, -1.5).applyEuler(launchBase.rotation).add(launchBase.position);
 
 // the rocket itself — the cartoon OBJ, with a procedural fallback if it can't load
