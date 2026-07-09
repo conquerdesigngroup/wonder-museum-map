@@ -1302,7 +1302,7 @@ let pinchDist = 0;
    The map never rotates: north stays up, WASD/joystick pan in screen
    directions, and the camera glides after the player. A second navigation
    style to compare against the street-level follow cam. */
-const BE_YAW = Math.PI, BE_PITCH = 1.04;
+const BE_YAW = 0, BE_PITCH = 1.04;   // camera south of the player looking north — matches the +z position offsets below
 const BE_MIN = 26, BE_MAX = 64;
 let birdsEye = false;
 let beDist = 44;
