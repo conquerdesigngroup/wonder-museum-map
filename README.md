@@ -28,6 +28,7 @@ the audio, the models, the particles — is generated procedurally in code, so t
 - **Reactive NPCs** — ducks that scatter, a robot greeter that tracks you
 - **Avatar customizer** (🎨), confetti on completing the museum, promo blimp
 - **Jetpack mode** (🚀 or J) — trade walking for hovering: faster cruise, Space for an altitude boost, flickering thruster flames, downdraft dust, and a lean-into-it flight tilt
+- **Bird's-eye view** (🗺️ or B) — an alternate navigation style: a fixed-orientation top-down diorama (think Animal Crossing) where the map never rotates, WASD/joystick pan in screen directions, and the camera glides after you; the choice persists across visits
 - **Synthesized sound** (Web Audio) and **haptics** (`navigator.vibrate`) on mobile
 - **Cinematic intro flyover** and an **idle attract mode** for kiosk use
 - **Deep links** — `#i-dig-dinos` (or any exhibit id) opens that hall's detail page and runs you there; the URL hash stays shareable as you browse

@@ -1244,6 +1244,7 @@ addEventListener('keydown', e=>{
   if(e.code==='Space') tryJump();
   if(e.code==='KeyN') toggleNight();
   if(e.code==='KeyJ') toggleJetpack();
+  if(e.code==='KeyB') toggleBirdsEye();
   if(e.code==='KeyR') respawn();
   if(e.code==='Escape'){
     if(passOpen) closePassport();
@@ -1297,6 +1298,30 @@ const CAM_MIN = 8, CAM_MAX = 40;
 const pointers = new Map();
 let pinchDist = 0;
 
+/* ---------- bird's-eye view (fixed-orientation top-down diorama) ----------
+   The map never rotates: north stays up, WASD/joystick pan in screen
+   directions, and the camera glides after the player. A second navigation
+   style to compare against the street-level follow cam. */
+const BE_YAW = Math.PI, BE_PITCH = 1.04;
+const BE_MIN = 26, BE_MAX = 64;
+let birdsEye = false;
+let beDist = 44;
+function toggleBirdsEye(){
+  birdsEye = !birdsEye;
+  document.getElementById('viewBtn').classList.toggle('on', birdsEye);
+  try{ localStorage.setItem('wm_view', birdsEye ? 'birdseye' : 'street'); }catch(e){}
+  sfx.open(); buzz(10);
+  showToast(birdsEye ? '🗺️ Bird\'s-eye view — the map stays put, you do the moving'
+                     : '🎥 Street view — drag to look around');
+}
+document.getElementById('viewBtn').addEventListener('click', toggleBirdsEye);
+try{
+  if(localStorage.getItem('wm_view') === 'birdseye'){
+    birdsEye = true;
+    document.getElementById('viewBtn').classList.add('on');
+  }
+}catch(e){}
+
 renderer.domElement.addEventListener('pointerdown', e=>{
   pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
   if(pointers.size === 2){
@@ -1307,7 +1332,7 @@ renderer.domElement.addEventListener('pointerdown', e=>{
 addEventListener('pointermove', e=>{
   if(!pointers.has(e.pointerId)) return;
   const p = pointers.get(e.pointerId);
-  if(pointers.size === 1){
+  if(pointers.size === 1 && !birdsEye){          // fixed view: no drag-orbit in bird's-eye
     camYaw   -= (e.clientX - p.x) * .0045;
     camPitch += (e.clientY - p.y) * .003;
     camPitch = Math.max(.22, Math.min(1.2, camPitch));
@@ -1316,7 +1341,8 @@ addEventListener('pointermove', e=>{
   if(pointers.size === 2){
     const [a, b] = [...pointers.values()];
     const d = Math.hypot(a.x-b.x, a.y-b.y);
-    camDist = Math.max(CAM_MIN, Math.min(CAM_MAX, camDist - (d - pinchDist) * .06));
+    if(birdsEye) beDist = Math.max(BE_MIN, Math.min(BE_MAX, beDist - (d - pinchDist) * .06));
+    else camDist = Math.max(CAM_MIN, Math.min(CAM_MAX, camDist - (d - pinchDist) * .06));
     pinchDist = d;
   }
 });
@@ -1325,7 +1351,8 @@ addEventListener('pointerup', dropPointer);
 addEventListener('pointercancel', dropPointer);
 
 addEventListener('wheel', e=>{
-  camDist = Math.max(CAM_MIN, Math.min(CAM_MAX, camDist + e.deltaY * .022));
+  if(birdsEye) beDist = Math.max(BE_MIN, Math.min(BE_MAX, beDist + e.deltaY * .022));
+  else camDist = Math.max(CAM_MIN, Math.min(CAM_MAX, camDist + e.deltaY * .022));
 }, { passive:true });
 
 /* ---------- double-click / double-tap to run there ---------- */
@@ -1702,8 +1729,16 @@ function updateCamera(dt, t){
     return;
   }
   // 2 — exhibit close-up: slow orbit of the building behind the open panel
+  //     (in bird's-eye the map stays fixed — glide over the building instead)
   if((modalOpen || detailOpen) && currentExhibit && !inside){
     const b = currentExhibit.e.group.position;
+    if(birdsEye){
+      const goal = new THREE.Vector3(b.x, Math.sin(BE_PITCH)*34 + 2.5, b.z + Math.cos(BE_PITCH)*34);
+      camera.position.lerp(goal, 1 - Math.pow(.002, dt));
+      camTarget.lerp(new THREE.Vector3(b.x, 2, b.z), 1 - Math.pow(.001, dt));
+      camera.lookAt(camTarget);
+      return;
+    }
     const ang = currentExhibit.baseAng + (t - currentExhibit.t0) * .16;
     const goal = new THREE.Vector3(b.x + Math.cos(ang)*16.5, 10, b.z + Math.sin(ang)*16.5);
     camera.position.lerp(goal, 1 - Math.pow(.002, dt));
@@ -1720,7 +1755,17 @@ function updateCamera(dt, t){
     camera.lookAt(camTarget);
     return;
   }
-  // 4 — normal follow camera
+  // 4a — bird's-eye: fixed-orientation top-down diorama that pans with the player
+  if(birdsEye && !inside){
+    camYaw = BE_YAW;                                // keeps WASD/joystick screen-relative
+    const goal = player.position.clone().add(new THREE.Vector3(
+      0, Math.sin(BE_PITCH)*beDist + 2.5, Math.cos(BE_PITCH)*beDist));
+    camera.position.lerp(goal, 1 - Math.pow(.0005, dt));
+    camTarget.lerp(player.position.clone().add(new THREE.Vector3(0, 1.2, 0)), 1 - Math.pow(.0002, dt));
+    camera.lookAt(camTarget);
+    return;
+  }
+  // 4b — normal follow camera
   const goal = followGoal();
   camera.position.lerp(goal, 1 - Math.pow(.0001, dt));
   camTarget.lerp(player.position.clone().add(new THREE.Vector3(0, 2.4, 0)), 1 - Math.pow(.00005, dt));
