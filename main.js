@@ -9,11 +9,11 @@
 
 /* ---------- palette ---------- */
 const C = {
-  ground:  0xACA3DC,  // lavender base (ref image 2), deepened so paths/buildings pop
-  grass:   0x84CE93,
-  grassB:  0x6DC084,
-  path:    0xF6F2E7,
-  pathEdge:0xE8E1CF,
+  ground:  0x6C60B0,  // deep lavender base — dark enough that pavement and lawns pop
+  grass:   0x6FBE81,
+  grassB:  0x5BAD70,
+  path:    0xD5CBAE,  // warm pavement, darker than before so white crosswalks read
+  pathEdge:0xB3A788,
   cream:   0xFFF6E6,
   coral:   0xFF7A59,
   coralD:  0xE8603F,
@@ -784,6 +784,28 @@ animated.push({ fn:(t,dt)=>{
   });
 }});
 
+/* distant white sky clouds — unlit and fog-free so they stay crisp against the blue */
+const skyClouds = new THREE.Group();
+for(let i=0;i<10;i++){
+  const cl = new THREE.Group();
+  const puffs = [[0,0,0,1.6],[1.5,-.25,.2,1.15],[-1.4,-.3,-.15,1.25],[.5,.6,0,1.0]];
+  puffs.forEach(([x,y,z,s])=>{
+    const p = new THREE.Mesh(new THREE.SphereGeometry(s, 7, 6),
+      new THREE.MeshBasicMaterial({ color:0xFFFFFF, fog:false }));
+    p.position.set(x, y, z);
+    cl.add(p);
+  });
+  const a = i/10 * Math.PI*2 + Math.random()*.4;
+  const r = 145 + Math.random()*45;
+  cl.position.set(Math.cos(a)*r, 42 + Math.random()*34, Math.sin(a)*r);
+  cl.scale.setScalar(2.4 + Math.random()*2.2);
+  cl.scale.y *= .72;                       // flatten for that cartoon-cloud silhouette
+  skyClouds.add(cl);
+}
+scene.add(skyClouds);
+clouds.push({ g:skyClouds, v:0 });          // v:0 → no x-drift, but they dim with the night mix
+animated.push({ fn:(t,dt)=>{ skyClouds.rotation.y += dt*.0045; } });
+
 /* ---------- time of day (sun arc) ---------- */
 // day tuned darker/more saturated than the original so the campus reads with contrast
 const SKY = {
@@ -792,10 +814,10 @@ const SKY = {
            sunC:new THREE.Color(0xFFEECC), sunI:1.05, ground:new THREE.Color(C.ground) },
   dusk:  { sky:new THREE.Color(0xF2A46B), fog:new THREE.Color(0xEFA075),
            hemiSky:new THREE.Color(0xFFD9A8), hemiGround:new THREE.Color(0x6D5490), hemiI:.4,
-           sunC:new THREE.Color(0xFF8A4A), sunI:1.05, ground:new THREE.Color(0xC7AE9C) },
+           sunC:new THREE.Color(0xFF8A4A), sunI:1.05, ground:new THREE.Color(0xAE9782) },
   night: { sky:new THREE.Color(0x232A52), fog:new THREE.Color(0x232A52),
            hemiSky:new THREE.Color(0x4A57A0), hemiGround:new THREE.Color(0x2E2750), hemiI:.48,
-           sunC:new THREE.Color(0xA7B6FF), sunI:.22, ground:new THREE.Color(0x8B84C4) },
+           sunC:new THREE.Color(0xA7B6FF), sunI:.22, ground:new THREE.Color(0x5C5595) },
 };
 let hourCur = 0, hourTarget = 0;   // 24h clock; sun is up 6:00–18:00 — starts at night (N or ☀️ for day)
 let nightMix = 0;                        // derived each frame; 1 = full night
@@ -2175,10 +2197,10 @@ function drawMinimap(t){
   }
   // park disc
   mmCtx.beginPath(); mmCtx.arc(c, c, c - 4, 0, Math.PI*2);
-  mmCtx.fillStyle = nightMix > .5 ? '#484278' : '#C9C3EC';
+  mmCtx.fillStyle = nightMix > .5 ? '#484278' : '#9D91D3';
   mmCtx.fill();
   // ring road + spokes
-  mmCtx.strokeStyle = nightMix > .5 ? '#8A83BC' : '#F6F2E7';
+  mmCtx.strokeStyle = nightMix > .5 ? '#8A83BC' : '#D5CBAE';
   mmCtx.lineWidth = 5.4 * k;
   mmCtx.beginPath(); mmCtx.arc(c, c, 37*k, 0, Math.PI*2); mmCtx.stroke();
   for(let i=0;i<HALL_COUNT;i++){
@@ -2190,7 +2212,7 @@ function drawMinimap(t){
   }
   // plaza
   mmCtx.beginPath(); mmCtx.arc(c, c, 13*k, 0, Math.PI*2);
-  mmCtx.fillStyle = nightMix > .5 ? '#8A83BC' : '#F6F2E7';
+  mmCtx.fillStyle = nightMix > .5 ? '#8A83BC' : '#D5CBAE';
   mmCtx.fill();
   // exhibits
   exhibits.forEach(e=>{
