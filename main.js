@@ -833,21 +833,55 @@ if(typeof THREE.OBJLoader === 'function'){
   }, undefined, ()=> buildFallbackRocket());
 } else buildFallbackRocket();
 
+// the big engine roar: looped noise swelling through liftoff, fading as it climbs away
+function rocketRoar(){
+  if(!AC || muted) return;
+  const t0 = AC.currentTime;
+  const src = AC.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+  src.playbackRate.value = .55;
+  const f = AC.createBiquadFilter(); f.type = 'lowpass';
+  f.frequency.setValueAtTime(180, t0);
+  f.frequency.exponentialRampToValueAtTime(1600, t0 + 2.4);   // engines spool up
+  f.frequency.exponentialRampToValueAtTime(240, t0 + 6.5);    // thunder rolls away
+  const g = AC.createGain();
+  g.gain.setValueAtTime(.0001, t0);
+  g.gain.exponentialRampToValueAtTime(.55, t0 + .6);
+  g.gain.setValueAtTime(.55, t0 + 2.6);
+  g.gain.exponentialRampToValueAtTime(.0001, t0 + 6.8);
+  src.connect(f); f.connect(g); g.connect(master);
+  src.start(t0); src.stop(t0 + 7);
+}
+
 // launch state machine
-let rocketState = 'ready';        // ready | flying | gone
+let rocketState = 'ready';        // ready | countdown | flying | gone
 let launchT = 0, smokeAcc = 0;
 function launchRocket(){
   if(rocketState !== 'ready') return;
-  rocketState = 'flying'; launchT = 0;
-  buzz([60, 80, 60, 80, 220]);
-  for(let i=0;i<10;i++) thud(.3, .5, 260 + i*130, i*.18);   // rolling rumble
-  blip(90, 2.4, 'sawtooth', .1, 750);                        // rising roar
-  showToast('🚀 LIFT-OFF! Back on the pad in 10 seconds…');
+  rocketState = 'countdown'; launchT = 0;
+  // mission-control countdown: three low beeps, one high one right at ignition
+  [0, .55, 1.1].forEach(d => blip(660, .14, 'square', .13, 0, d));
+  blip(990, .3, 'square', .15, 0, 1.65);
+  buzz([30, 300, 30, 300, 30]);
+  showToast('🚀 T-minus 3… 2… 1…');
 }
 animated.push({ fn:(t, dt)=>{
-  beacons.forEach(b=>{ b.m.emissiveIntensity = .35 + Math.max(0, Math.sin(t*2.2 + b.off)) * 1.3; });
+  const blinkRate = rocketState === 'countdown' ? 9 : 2.2;    // beacons go frantic during countdown
+  beacons.forEach(b=>{ b.m.emissiveIntensity = .35 + Math.max(0, Math.sin(t*blinkRate + b.off)) * 1.3; });
   if(rocketState === 'ready') return;
   launchT += dt;
+  if(rocketState === 'countdown'){
+    rocketShip.rotation.z = Math.sin(launchT*30)*.004;        // engines trembling
+    if(launchT >= 1.8){
+      rocketState = 'flying'; launchT = 0;
+      rocketRoar();
+      for(let i=0;i<7;i++) thud(.3, .45, 240 + Math.random()*500, i*.22 + Math.random()*.08);  // exhaust crackle
+      blip(120, 2.4, 'sawtooth', .09, 620);                   // rising scream under the roar
+      blip(900, 2.6, 'sine', .05, -690, 2.3);                 // doppler whine as it passes overhead
+      buzz([60, 80, 60, 80, 220]);
+      showToast('🚀 LIFT-OFF! Back on the pad in 10 seconds…');
+    }
+    return;
+  }
   if(rocketState === 'flying'){
     const u = launchT;
     const h = u < 1.2 ? u*u*.9 : 1.3 + (u-1.2)*(u-1.2)*11 + (u-1.2)*4;  // rumble, then punch it
@@ -866,7 +900,8 @@ animated.push({ fn:(t, dt)=>{
     rocketShip.visible = true;
     rocketFlame.visible = false;
     spawnPuff(rocketWorldHome, 1.6);
-    sfx.discover();
+    [392, 523, 659].forEach((f, i)=> blip(f, .18, 'triangle', .1, 0, i*.07));   // gentle arrival chime
+    thud(.14, .18, 500, .25);                                                   // soft touchdown
     showToast('🚀 Rocket refueled and back on the pad');
   }
 }});
